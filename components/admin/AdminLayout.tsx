@@ -150,6 +150,12 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (mounted && (!isAuthenticated || !isAdmin)) {
+      router.replace("/connexion");
+    }
+  }, [mounted, isAuthenticated, isAdmin, router]);
+
   // During SSR and first client render, show a neutral loading state
   // to avoid hydration mismatch (localStorage is not available on server)
   if (!mounted) {
@@ -161,7 +167,6 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
   }
 
   if (!isAuthenticated || !isAdmin) {
-    router.push("/connexion");
     return null;
   }
 

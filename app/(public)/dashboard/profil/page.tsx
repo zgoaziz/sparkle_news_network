@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
@@ -107,9 +107,25 @@ function ProtectedProfile() {
 export default function ProfilePage() {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
-  if (!isAuthenticated) {
-    router.push("/connexion");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !isAuthenticated) {
+      router.replace("/connexion");
+    }
+  }, [mounted, isAuthenticated, router]);
+
+  if (!mounted) {
     return null;
   }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return <ProtectedProfile />;
 }

@@ -55,12 +55,12 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ collapsed }: AdminSidebarProps) {
   const router = useRouter();
-  const location = usePathname();
+  const pathname = usePathname();
   const { user, logout } = useAuth();
 
   function isActive(href: string, exact?: boolean) {
-    if (exact) return location === href;
-    return location.startsWith(href);
+    if (exact) return pathname === href;
+    return pathname?.startsWith(href) ?? false;
   }
 
   return (

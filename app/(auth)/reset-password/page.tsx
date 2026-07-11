@@ -20,12 +20,11 @@ export default function ResetPasswordPage() {
   const [tokenLoaded, setTokenLoaded] = useState(false);
 
   useEffect(() => {
-    // Run only once during hydration / mount
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      setToken(params.get("token"));
-      setTokenLoaded(true);
-    }
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    setToken(params.get("token"));
+    setTokenLoaded(true);
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {

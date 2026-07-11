@@ -243,7 +243,9 @@ export default function ArticleDetailClient() {
         )}
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => {
-            navigator.clipboard.writeText(window.location.href);
+            if (typeof window !== "undefined") {
+              navigator.clipboard.writeText(window.location.href);
+            }
             toast.success("Lien copié dans le presse-papier !");
           }}>
             <Share2 className="h-4 w-4 mr-2" />

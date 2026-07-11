@@ -11,6 +11,8 @@ export default function ConfirmEmailPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
 

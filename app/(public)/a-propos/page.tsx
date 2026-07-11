@@ -23,7 +23,10 @@ interface SiteStats {
 
 async function fetchStats(): Promise<SiteStats | null> {
   try {
-    // S'assure que la connexion DB est établie dans Next.js
+    if (!process.env.MONGODB_URI) {
+      return null;
+    }
+
     await db.connect();
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
