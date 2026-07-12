@@ -87,7 +87,7 @@ export default function AdminCategories() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [editCat, setEditCat] = useState<any>(null);
-  const [deleteCatId, setDeleteCatId] = useState<number | null>(null);
+  const [deleteCatId, setDeleteCatId] = useState<string | null>(null);
 
   function refresh() {
     queryClient.invalidateQueries({ queryKey: getAdminListCategoriesQueryKey() });
@@ -100,15 +100,20 @@ export default function AdminCategories() {
     });
   }
 
+  function getCategoryId(category: any) {
+    return category?.id || category?._id || category?.slug;
+  }
+
   function handleUpdate(formData: any) {
-    updateCategory.mutate({ id: editCat.id, data: formData }, {
+    const categoryId = getCategoryId(editCat);
+    updateCategory.mutate({ id: Number(categoryId) || categoryId, data: formData }, {
       onSuccess: () => { toast.success("Catégorie mise à jour !"); setEditCat(null); refresh(); },
       onError: (err: any) => toast.error(err?.response?.data?.message || "Erreur"),
     });
   }
 
-  function handleDelete(id: number) {
-    deleteCategory.mutate({ id }, {
+  function handleDelete(id: string) {
+    deleteCategory.mutate({ id: Number(id) || id as any }, {
       onSuccess: () => { toast.success("Catégorie supprimée"); setDeleteCatId(null); refresh(); },
       onError: () => toast.error("Erreur lors de la suppression"),
     });
@@ -141,7 +146,7 @@ export default function AdminCategories() {
                   <button onClick={() => setEditCat(cat)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-[#006FE6] transition-colors px-2 py-1 rounded-lg hover:bg-muted">
                     <Edit className="h-3.5 w-3.5" /> Modifier
                   </button>
-                  <button onClick={() => setDeleteCatId(cat.id)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+                  <button onClick={() => setDeleteCatId(getCategoryId(cat))} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
                     <Trash2 className="h-3.5 w-3.5" /> Supprimer
                   </button>
                 </div>

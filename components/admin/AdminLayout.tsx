@@ -40,8 +40,8 @@ function AdminContent({ children, title }: AdminLayoutProps) {
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 15000); // Polling every 15s
-    return () => clearInterval(interval);
+    const interval = window.setInterval(fetchNotifications, 60000);
+    return () => window.clearInterval(interval);
   }, []);
 
   const markAllRead = async () => {

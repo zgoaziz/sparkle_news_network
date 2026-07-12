@@ -10,9 +10,36 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+function resolveFrontendUrl() {
+  const configured =
+    process.env.FRONTEND_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL;
+
+  if (configured) {
+    const trimmed = configured.trim().replace(/\/$/, "");
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return trimmed;
+    }
+
+    if (/^localhost(:\d+)?$|^127\.0\.0\.1(:\d+)?$/i.test(trimmed)) {
+      return `http://${trimmed}`;
+    }
+
+    return `https://${trimmed}`;
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`.replace(/\/$/, "");
+  }
+
+  return "http://localhost:3000";
+}
+
 export async function sendConfirmationEmail(email: string, token: string) {
-  const confirmUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/confirm-email?token=${token}`;
-  
+  const confirmUrl = `${resolveFrontendUrl()}/confirm-email?token=${token}`;
+
   try {
     await transporter.sendMail({
       from: process.env.SMTP_FROM,
@@ -33,7 +60,7 @@ export async function sendConfirmationEmail(email: string, token: string) {
 }
 
 export async function sendPasswordResetEmail(email: string, token: string) {
-  const resetUrl = `${process.env.FRONTEND_URL || "http://localhost:3000"}/reset-password?token=${token}`;
+  const resetUrl = `${resolveFrontendUrl()}/reset-password?token=${token}`;
 
   try {
     await transporter.sendMail({

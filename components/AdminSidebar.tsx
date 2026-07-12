@@ -69,14 +69,8 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
       collapsed ? "w-16" : "w-64"
     )}>
       {/* Logo */}
-      <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-white/10", collapsed && "justify-center px-2")}>
-        <img src={logo} alt="Sparkle" className="h-7 w-auto shrink-0" />
-        {!collapsed && (
-          <div>
-            <span className="text-sm font-black">Sparkle News</span>
-            <div className="text-[9px] text-white/40 uppercase tracking-widest">Administration</div>
-          </div>
-        )}
+      <div className={cn("flex items-center justify-center px-4 py-5 border-b border-white/10", collapsed && "px-2")}>
+        <img src={logo} alt="Sparkle" className="h-10 w-auto shrink-0" />
       </div>
 
       {/* Nav */}

@@ -18,7 +18,16 @@ function resolveApiBase(baseUrl?: string) {
     process.env.VERCEL_URL;
 
   if (fromEnv) {
-    return fromEnv.startsWith("http") ? fromEnv : `https://${fromEnv}`;
+    const trimmed = fromEnv.trim();
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      return trimmed;
+    }
+
+    if (/^localhost(:\d+)?$|^127\.0\.0\.1(:\d+)?$/i.test(trimmed)) {
+      return `http://${trimmed}`;
+    }
+
+    return `https://${trimmed}`;
   }
 
   if (process.env.VERCEL_URL) {
@@ -40,7 +49,8 @@ async function serverFetch<T>(
     const url = new URL(path, apiBase.endsWith("/") ? apiBase : `${apiBase}/`);
 
     const res = await fetch(url, {
-      next: { revalidate },
+      cache: "no-store",
+      next: { revalidate: 0 },
     });
     if (!res.ok) return null;
     return res.json() as Promise<T>;

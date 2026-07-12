@@ -10,10 +10,17 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .lean()
       .exec();
+
+    const normalizedCategories = (categories as any[]).map((category) => ({
+      ...category,
+      id: category._id?.toString() || category.id,
+      _id: category._id?.toString() || category.id,
+    }));
+
     return NextResponse.json({
       ok: true,
       route: "/api/admin/categories",
-      categories,
+      categories: normalizedCategories,
     });
   } catch (error) {
     console.error("GET /api/admin/categories error", error);

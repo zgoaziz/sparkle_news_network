@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { articlesTable, categoriesTable, usersTable } from "@/lib/db/schema";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function buildSummary(
   article: any,
   catMap: Record<string, any>,

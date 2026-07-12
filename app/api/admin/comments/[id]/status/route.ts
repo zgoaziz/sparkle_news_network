@@ -20,31 +20,37 @@ function getForbiddenResponse() {
   );
 }
 
-function ensureAdmin(req: NextRequest) {
-  const user = getAuthUser(req);
-  if (!user?.userId) return null;
-  if (user.role !== "admin" && user.role !== "editor") return "forbidden";
-  return user;
-}
-
-export async function DELETE(
+export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } | Promise<{ id: string }> },
 ) {
   try {
     const p = await params;
-    const auth = ensureAdmin(req);
-    if (!auth) {
+    const user = getAuthUser(req);
+    if (!user?.userId) {
       return getAuthErrorResponse();
     }
-    if (auth === "forbidden") {
+    if (user.role !== "admin" && user.role !== "editor") {
       return getForbiddenResponse();
     }
 
-    await connectDB();
-    const deleted = await commentsTable.findByIdAndDelete(p.id).lean().exec();
+    const body = await req.json();
+    const status = body?.status;
+    if (!["approved", "rejected", "pending"].includes(status)) {
+      return NextResponse.json(
+        { ok: false, message: "Statut invalide" },
+        { status: 400 },
+      );
+    }
 
-    if (!deleted) {
+    await connectDB();
+    const updated = await commentsTable
+      .findByIdAndUpdate(p.id, { status, updatedAt: new Date() }, { new: true })
+      .lean()
+      .exec();
+
+    const updatedComment = updated as any;
+    if (!updatedComment) {
       return NextResponse.json(
         { ok: false, message: "Commentaire introuvable" },
         { status: 404 },
@@ -53,13 +59,16 @@ export async function DELETE(
 
     return NextResponse.json({
       ok: true,
-      message: "Commentaire supprimé",
-      id: p.id,
+      message: "Statut mis à jour",
+      comment: {
+        id: updatedComment._id?.toString?.() || updatedComment.id,
+        status: updatedComment.status,
+      },
     });
   } catch (error) {
-    console.error("DELETE /api/admin/comments/[id] error", error);
+    console.error("PATCH /api/admin/comments/[id]/status error", error);
     return NextResponse.json(
-      { ok: false, message: "Erreur lors de la suppression du commentaire" },
+      { ok: false, message: "Erreur lors de la mise à jour du commentaire" },
       { status: 500 },
     );
   }

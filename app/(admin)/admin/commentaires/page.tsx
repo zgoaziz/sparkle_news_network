@@ -26,7 +26,7 @@ export default function AdminComments() {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState("all");
   const [page, setPage] = useState(1);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data, isLoading } = useAdminListComments({
     page,
@@ -41,15 +41,15 @@ export default function AdminComments() {
 
   function refresh() { queryClient.invalidateQueries({ queryKey: getAdminListCommentsQueryKey() }); }
 
-  function handleStatusChange(id: number, newStatus: string) {
-    updateStatus.mutate({ id, data: { status: newStatus as any } }, {
+  function handleStatusChange(id: string, newStatus: string) {
+    updateStatus.mutate({ id: id as any, data: { status: newStatus as any } }, {
       onSuccess: () => { toast.success("Statut mis à jour"); refresh(); },
       onError: () => toast.error("Erreur"),
     });
   }
 
-  function handleDelete(id: number) {
-    deleteComment.mutate({ id }, {
+  function handleDelete(id: string) {
+    deleteComment.mutate({ id: id as any }, {
       onSuccess: () => { toast.success("Commentaire supprimé"); setDeleteId(null); refresh(); },
       onError: () => toast.error("Erreur"),
     });

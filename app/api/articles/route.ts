@@ -2,6 +2,9 @@ import { NextResponse, NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
 import { articlesTable, categoriesTable, usersTable } from "@/lib/db/schema";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function buildArticleSummary(
   articles: any[],
   catMap: Record<string, any>,
@@ -99,7 +102,7 @@ export async function GET(req: NextRequest) {
       articlesTable
         .find(conditions)
         .select(
-          "title slug excerpt coverImage publishedAt readTime views likes featured tags categoryId authorId"
+          "title slug excerpt coverImage publishedAt readTime views likes featured tags categoryId authorId",
         )
         .sort(sortField)
         .skip(offset)
@@ -120,13 +123,16 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     console.error("GET articles error:", err);
-    return NextResponse.json({
-      articles: [],
-      total: 0,
-      page: 1,
-      totalPages: 0,
-      error: "Internal Server Error",
-      message: "Erreur lors de la récupération des articles.",
-    }, { status: 200 });
+    return NextResponse.json(
+      {
+        articles: [],
+        total: 0,
+        page: 1,
+        totalPages: 0,
+        error: "Internal Server Error",
+        message: "Erreur lors de la récupération des articles.",
+      },
+      { status: 200 },
+    );
   }
 }
