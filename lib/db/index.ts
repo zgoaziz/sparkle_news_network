@@ -3,32 +3,39 @@ import * as schema from "./schema";
 
 const { MONGODB_URI, DB_NAME } = process.env;
 
-if (!MONGODB_URI || !DB_NAME) {
-  throw new Error(
-    "Variables DB manquantes. Vérifiez MONGODB_URI et DB_NAME dans le .env",
-  );
-}
-
 let connection: typeof mongoose | null = null;
+let connectionPromise: Promise<typeof mongoose> | null = null;
 
 export async function connectDB() {
   if (connection) {
     return connection;
   }
 
-  connection = await mongoose.connect(MONGODB_URI as string, {
-    dbName: DB_NAME,
-    family: 4, // Force IPv4 to avoid IPv6 ENETUNREACH issues
-    serverSelectionTimeoutMS: 10000, // Fail fast if Atlas is unreachable (10s)
-    socketTimeoutMS: 45000, // Keep socket alive longer
-    connectTimeoutMS: 10000, // Initial connection timeout
-    maxPoolSize: 10, // Maintain up to 10 connections
-    minPoolSize: 2, // Keep minimum 2 connections warm
-    heartbeatFrequencyMS: 10000, // Check connection health every 10s
-  });
+  if (!MONGODB_URI || !DB_NAME) {
+    throw new Error("Variables DB manquantes. Vérifiez MONGODB_URI et DB_NAME dans le .env");
+  }
 
-  console.log("Connected to MongoDB Atlas");
-  return connection;
+  if (!connectionPromise) {
+    connectionPromise = mongoose.connect(MONGODB_URI as string, {
+      dbName: DB_NAME,
+      family: 4, // Force IPv4 to avoid IPv6 ENETUNREACH issues
+      serverSelectionTimeoutMS: 10000, // Fail fast if Atlas is unreachable (10s)
+      socketTimeoutMS: 45000, // Keep socket alive longer
+      connectTimeoutMS: 10000, // Initial connection timeout
+      maxPoolSize: 10, // Maintain up to 10 connections
+      minPoolSize: 2, // Keep minimum 2 connections warm
+      heartbeatFrequencyMS: 10000, // Check connection health every 10s
+    });
+  }
+
+  try {
+    connection = await connectionPromise;
+    console.log("Connected to MongoDB Atlas");
+    return connection;
+  } catch (error) {
+    connectionPromise = null;
+    throw error;
+  }
 }
 
 // Drizzle operator compatibility

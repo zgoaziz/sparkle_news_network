@@ -18,7 +18,11 @@ function resolveApiBase(baseUrl?: string) {
     process.env.VERCEL_URL;
 
   if (fromEnv) {
-    return fromEnv;
+    return fromEnv.startsWith("http") ? fromEnv : `https://${fromEnv}`;
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
   }
 
   return typeof window !== "undefined"

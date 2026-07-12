@@ -110,9 +110,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(summaries);
   } catch (error) {
     console.error("GET /api/articles/featured error", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 },
-    );
+    return NextResponse.json([], { status: 200 });
   }
 }

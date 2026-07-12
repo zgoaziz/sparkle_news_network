@@ -120,9 +120,13 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     console.error("GET articles error:", err);
-    return NextResponse.json(
-      { error: "Internal Server Error", message: "Erreur lors de la récupération des articles." },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      articles: [],
+      total: 0,
+      page: 1,
+      totalPages: 0,
+      error: "Internal Server Error",
+      message: "Erreur lors de la récupération des articles.",
+    }, { status: 200 });
   }
 }

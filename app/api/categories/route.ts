@@ -34,9 +34,6 @@ export async function GET() {
     return NextResponse.json(categoriesWithCount);
   } catch (err) {
     console.error("GET categories error:", err);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json([], { status: 200 });
   }
 }
