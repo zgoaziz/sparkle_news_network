@@ -1,10 +1,33 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 import axios from "axios";
+
+const TOKEN_STORAGE_KEY = "sparkle_confirm_email_token";
+
+function getTokenFromLocation() {
+  if (typeof window === "undefined") return null;
+
+  const params = new URLSearchParams(window.location.search);
+  const tokenFromUrl = params.get("token");
+
+  if (tokenFromUrl) {
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, tokenFromUrl);
+    return tokenFromUrl;
+  }
+
+  const tokenFromStorage = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+  if (tokenFromStorage) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("token", tokenFromStorage);
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    return tokenFromStorage;
+  }
+
+  return null;
+}
 
 export default function ConfirmEmailPage() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
@@ -13,8 +36,7 @@ export default function ConfirmEmailPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
+    const token = getTokenFromLocation();
 
     if (!token) {
       setStatus("error");
@@ -22,7 +44,10 @@ export default function ConfirmEmailPage() {
       return;
     }
 
-    axios.get(`/api/auth/confirm-email?token=${token}`)
+    axios
+      .get("/api/auth/confirm-email", {
+        params: { token },
+      })
       .then((res) => {
         setStatus("success");
         setMessage(res.data.message);
