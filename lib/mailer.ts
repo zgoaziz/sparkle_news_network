@@ -17,21 +17,39 @@ function resolveFrontendUrl() {
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.APP_URL;
 
+  const productionHost =
+    process.env.NEXT_PUBLIC_VERCEL_URL ||
+    process.env.VERCEL_URL ||
+    process.env.VERCEL_BRANCH_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL;
+
   if (configured) {
     const trimmed = configured.trim().replace(/\/$/, "");
+
     if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      if (
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(trimmed) &&
+        productionHost
+      ) {
+        return `https://${productionHost}`.replace(/\/$/, "");
+      }
+
       return trimmed;
     }
 
     if (/^localhost(:\d+)?$|^127\.0\.0\.1(:\d+)?$/i.test(trimmed)) {
+      if (productionHost) {
+        return `https://${productionHost}`.replace(/\/$/, "");
+      }
+
       return `http://${trimmed}`;
     }
 
     return `https://${trimmed}`;
   }
 
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`.replace(/\/$/, "");
+  if (productionHost) {
+    return `https://${productionHost}`.replace(/\/$/, "");
   }
 
   return "http://localhost:3000";
