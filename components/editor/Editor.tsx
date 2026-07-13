@@ -365,7 +365,7 @@ export default function Editor({ articleId }: { articleId?: string }) {
       }
 
       if (article.categoryId) {
-        setCategoryIds([article.categoryId]);
+        setCategoryIds([String(article.categoryId)]);
       }
 
       if (typeof article.featured === "boolean") {
@@ -559,7 +559,7 @@ export default function Editor({ articleId }: { articleId?: string }) {
           excerpt: payload.excerpt || null,
           content: payload.content,
           coverImage: payload.coverImage,
-          categoryId: payload.categoryId,
+          categoryId: payload.categoryId != null ? Number(payload.categoryId) : null,
           status: payload.status,
           featured: payload.featured,
           tags: payload.tags,
@@ -574,7 +574,7 @@ export default function Editor({ articleId }: { articleId?: string }) {
           excerpt: payload.excerpt || null,
           content: payload.content,
           coverImage: payload.coverImage,
-          categoryId: payload.categoryId,
+          categoryId: payload.categoryId != null ? Number(payload.categoryId) : null,
           status: payload.status,
           featured: payload.featured,
           tags: payload.tags,
@@ -609,7 +609,7 @@ export default function Editor({ articleId }: { articleId?: string }) {
           excerpt: payload.excerpt || null,
           content: payload.content,
           coverImage: payload.coverImage,
-          categoryId: payload.categoryId,
+          categoryId: payload.categoryId != null ? Number(payload.categoryId) : null,
           status: payload.status,
           featured: payload.featured,
           tags: payload.tags,
@@ -624,7 +624,7 @@ export default function Editor({ articleId }: { articleId?: string }) {
           excerpt: payload.excerpt || null,
           content: payload.content,
           coverImage: payload.coverImage,
-          categoryId: payload.categoryId,
+          categoryId: payload.categoryId != null ? Number(payload.categoryId) : null,
           status: payload.status,
           featured: payload.featured,
           tags: payload.tags,

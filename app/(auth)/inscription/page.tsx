@@ -30,7 +30,7 @@ export default function RegisterPage() {
           router.push("/connexion");
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || "Erreur lors de l'inscription");
+          toast.error(err?.data?.message || err?.response?.data?.message || "Erreur lors de l'inscription");
         },
       }
     );

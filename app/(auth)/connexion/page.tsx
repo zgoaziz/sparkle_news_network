@@ -37,7 +37,7 @@ export default function LoginPage() {
           }
         },
         onError: (err: any) => {
-          toast.error(err?.response?.data?.message || "Identifiants invalides");
+          toast.error(err?.data?.message || err?.response?.data?.message || "Identifiants invalides");
         },
       }
     );
