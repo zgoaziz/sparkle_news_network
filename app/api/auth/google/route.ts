@@ -5,51 +5,103 @@ import { hashPassword, signToken } from "@/lib/auth";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
 
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const googleClientId =
+  process.env.GOOGLE_WEB_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "";
+const googleAudience = [
+  process.env.GOOGLE_WEB_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_ID,
+]
+  .filter(Boolean)
+  .map((value) => value as string);
 
 export async function POST(req: Request) {
   try {
-    await connectDB();
-    const { credential } = await req.json();
-
-    if (!credential) {
+    if (!googleClientId) {
       return NextResponse.json(
-        { error: "Validation error", message: "Google credential is required" },
-        { status: 400 }
+        {
+          error: "Server misconfiguration",
+          message: "Google Web Client ID is not configured on the backend.",
+        },
+        { status: 500 },
       );
     }
 
-    const ticket = await googleClient.verifyIdToken({
-      idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
+    const googleClient = new OAuth2Client(googleClientId);
+    await connectDB();
+    const body = await req.json();
+    const { credential, email, name, picture, googleId } = body ?? {};
 
-    const payload = ticket.getPayload();
+    if (!credential && (!email || !name)) {
+      return NextResponse.json(
+        {
+          error: "Validation error",
+          message: "Google credential or profile data is required",
+        },
+        { status: 400 },
+      );
+    }
+
+    let payload: any = null;
+
+    if (credential) {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience:
+          googleAudience.length === 1 ? googleAudience[0] : googleAudience,
+      });
+
+      payload = ticket.getPayload();
+    } else {
+      payload = {
+        email,
+        name,
+        picture,
+        sub: googleId || `mobile-${Date.now()}`,
+      };
+    }
+
     if (!payload) {
       return NextResponse.json(
         { error: "Invalid token", message: "Invalid Google token payload" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const { email, name, picture, sub: googleId } = payload;
-    if (!email || !name) {
+    const {
+      email: payloadEmail,
+      name: payloadName,
+      picture: payloadPicture,
+      sub: payloadGoogleId,
+    } = payload;
+    const resolvedEmail = payloadEmail?.toString();
+    const resolvedName = payloadName?.toString();
+    const resolvedPicture = payloadPicture?.toString();
+    const resolvedGoogleId = payloadGoogleId?.toString();
+
+    if (!resolvedEmail || !resolvedName) {
       return NextResponse.json(
-        { error: "Invalid payload", message: "Email and name are required from Google" },
-        { status: 400 }
+        {
+          error: "Invalid payload",
+          message: "Email and name are required from Google",
+        },
+        { status: 400 },
       );
     }
 
-    let user = await usersTable.findOne({ email: new RegExp(`^${email}$`, "i") });
+    let user = await usersTable.findOne({
+      email: new RegExp(`^${resolvedEmail}$`, "i"),
+    });
 
     if (!user) {
-      const passwordHash = await hashPassword(crypto.randomBytes(32).toString("hex")); // random secure password
+      const passwordHash = await hashPassword(
+        crypto.randomBytes(32).toString("hex"),
+      ); // random secure password
       user = await usersTable.create({
-        name,
-        email,
+        name: resolvedName,
+        email: resolvedEmail,
         passwordHash,
-        googleId,
-        avatar: picture,
+        googleId: resolvedGoogleId,
+        avatar: resolvedPicture,
         role: "user",
         status: "active",
         emailVerified: true, // Google emails are pre-verified
@@ -58,7 +110,7 @@ export async function POST(req: Request) {
       try {
         await Notification.create({
           title: "Nouvel utilisateur inscrit (Google)",
-          message: `${name} (${email}) vient de créer un compte via Google.`,
+          message: `${resolvedName} (${resolvedEmail}) vient de créer un compte via Google.`,
           type: "user",
           read: false,
         });
@@ -68,17 +120,21 @@ export async function POST(req: Request) {
     } else {
       // Update existing user with googleId and avatar if missing
       const updates: any = {};
-      if (!user.googleId) updates.googleId = googleId;
-      if (!user.avatar && picture) updates.avatar = picture;
+      if (!user.googleId) updates.googleId = resolvedGoogleId;
+      if (!user.avatar && resolvedPicture) updates.avatar = resolvedPicture;
       if (Object.keys(updates).length > 0) {
-        user = await usersTable.findOneAndUpdate({ _id: user._id }, { $set: updates }, { new: true });
+        user = await usersTable.findOneAndUpdate(
+          { _id: user._id },
+          { $set: updates },
+          { new: true },
+        );
       }
     }
 
     if (user.status === "disabled") {
       return NextResponse.json(
         { error: "Forbidden", message: "Compte désactivé" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -96,8 +152,11 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Google Auth Error:", error);
     return NextResponse.json(
-      { error: "Authentication failed", message: "Échec de l'authentification Google" },
-      { status: 500 }
+      {
+        error: "Authentication failed",
+        message: "Échec de l'authentification Google",
+      },
+      { status: 500 },
     );
   }
 }

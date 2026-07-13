@@ -2,14 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { sponsorsTable } from "@/lib/db/schema";
 
+type SponsorDocument = {
+  isActive?: boolean;
+};
+
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } | Promise<{ id: string }> },
+  { params }: { params: Promise<Record<string, string | string[]>> },
 ) {
   try {
     const p = await params;
+    const id =
+      typeof p.id === "string" ? p.id : Array.isArray(p.id) ? p.id[0] : "";
     await connectDB();
-    const sponsor = (await sponsorsTable.findById(p.id).lean().exec()) as any;
+    const sponsor = (await sponsorsTable
+      .findById(id)
+      .lean()
+      .exec()) as SponsorDocument | null;
     if (!sponsor) {
       return NextResponse.json(
         { ok: false, message: "Sponsor introuvable." },
@@ -19,17 +28,17 @@ export async function PATCH(
 
     const updated = (await sponsorsTable
       .findByIdAndUpdate(
-        p.id,
+        id,
         { isActive: !sponsor.isActive, updatedAt: new Date() },
         { new: true },
       )
       .lean()
-      .exec()) as any;
+      .exec()) as SponsorDocument | null;
 
     return NextResponse.json({
       ok: true,
       route: "/api/admin/sponsors/[id]/toggle",
-      id: p.id,
+      id,
       isActive: updated?.isActive ?? false,
     });
   } catch (error) {

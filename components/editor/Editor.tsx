@@ -2,9 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCreateArticle, useAdminListCategories, getAdminListArticlesQueryKey, useAdminGetArticle, useUpdateArticle } from "@/lib/api-client";
+import {
+  useCreateArticle,
+  useAdminListCategories,
+  getAdminListArticlesQueryKey,
+  getAdminGetArticleQueryKey,
+  useAdminGetArticle,
+  useUpdateArticle,
+  type CategoryAdmin,
+  type CreateArticleBody,
+  type UpdateArticleBody,
+} from "@/lib/api-client";
 import { toast } from "sonner";
 import { nanoid } from "nanoid";
 import { Button } from "@/components/ui/button";
@@ -46,10 +55,28 @@ type BlockType =
   | "gallery"
   | "columns";
 
+type ColumnBlockData = {
+  type?: string;
+  content?: string;
+  url?: string;
+  caption?: string;
+};
+
+type BlockData = {
+  content?: string;
+  url?: string;
+  caption?: string;
+  rows?: string[][];
+  items?: string[];
+  left?: string | ColumnBlockData;
+  right?: string | ColumnBlockData;
+  [key: string]: unknown;
+};
+
 type Block = {
   id: string;
   type: BlockType;
-  data: Record<string, any>;
+  data: BlockData;
 };
 
 type SlashOption = {
@@ -87,13 +114,15 @@ function slugify(text: string) {
     .replace(/\s+/g, "-");
 }
 
+type CategoryOption = CategoryAdmin & { _id?: string; id?: number | string };
+
 type ArticlePayload = {
   title: string;
   slug: string;
   excerpt: string;
   content: string;
   coverImage: string | null;
-  categoryId?: string | null;
+  categoryId: number | null;
   status: "draft" | "published";
   featured: boolean;
   tags: string[];
@@ -102,12 +131,26 @@ type ArticlePayload = {
   seoDescription?: string | null;
 };
 
-function createBlock(type: BlockType, data: Record<string, any> = {}): Block {
+function createBlock(type: BlockType, data: BlockData = {}): Block {
   return {
     id: nanoid(),
     type,
     data: { ...getDefaultData(type), ...data },
   };
+}
+
+function getStringValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function getStringArray(value: unknown): string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string") ? value : [];
+}
+
+function getRows(value: unknown): string[][] {
+  return Array.isArray(value) && value.every((row) => Array.isArray(row) && row.every((cell) => typeof cell === "string"))
+    ? (value as string[][])
+    : [["", ""]];
 }
 
 function getDefaultData(type: BlockType) {
@@ -139,52 +182,59 @@ function getDefaultData(type: BlockType) {
   }
 }
 
-function buildArticlePayload(title: string, blocks: Block[], status: "draft" | "published", featured: boolean = false): ArticlePayload {
+function buildArticlePayload(title: string, blocks: Block[], status: "draft" | "published", featured = false): ArticlePayload {
   const normalizedTitle = title.trim() || "Untitled";
   const apiBlocks = blocks.map((block) => {
     switch (block.type) {
       case "heading1":
       case "heading2":
       case "heading3":
-        return { type: "heading", level: Number(block.type.replace("heading", "")), content: block.data.content || "" };
+        return { type: "heading", level: Number(block.type.replace("heading", "")), content: getStringValue(block.data.content) };
       case "image":
-        return { type: "image", url: block.data.url || "", caption: block.data.caption || "" };
+        return { type: "image", url: getStringValue(block.data.url), caption: getStringValue(block.data.caption) };
       case "video":
-        return { type: "video", url: block.data.url || "", caption: block.data.caption || "" };
+        return { type: "video", url: getStringValue(block.data.url), caption: getStringValue(block.data.caption) };
       case "quote":
-        return { type: "quote", content: block.data.content || "" };
+        return { type: "quote", content: getStringValue(block.data.content) };
       case "code":
-        return { type: "code", content: block.data.content || "" };
+        return { type: "code", content: getStringValue(block.data.content) };
       case "list":
-        return { type: "list", items: (block.data.content || "").split("\n").filter(Boolean) };
+        return { type: "list", items: getStringValue(block.data.content).split("\n").filter(Boolean) };
       case "table":
-        return { type: "table", rows: block.data.rows || [["", ""]] };
+        return { type: "table", rows: getRows(block.data.rows) };
       case "divider":
         return { type: "divider" };
       case "gallery":
-        return { type: "gallery", items: block.data.items || [] };
+        return { type: "gallery", items: getStringArray(block.data.items) };
       case "columns": {
-        const renderColumn = (col: any) => {
+        const renderColumn = (col: BlockData | string | null | undefined) => {
           if (!col) return "";
           if (typeof col === "string") return col;
-          if (col.type === "image") return `<img src="${col.url || ""}" alt="${(col.caption || "").replace(/\"/g, "&quot;")}" />`;
-          return `<p>${(col.content || "").replace(/</g, "&lt;")}</p>`;
+          const column = col as Record<string, unknown>;
+          if (column.type === "image") {
+            const url = typeof column.url === "string" ? column.url : "";
+            const caption = typeof column.caption === "string" ? column.caption : "";
+            return `<img src="${url}" alt="${caption.replace(/\"/g, "&quot;")}" />`;
+          }
+          const content = typeof column.content === "string" ? column.content : "";
+          return `<p>${content.replace(/</g, "&lt;")}</p>`;
         };
         return { type: "columns", columns: [renderColumn(block.data.left), renderColumn(block.data.right)] };
       }
       default:
-        return { type: "paragraph", content: block.data.content || "" };
+        return { type: "paragraph", content: getStringValue(block.data.content) };
     }
   });
 
-  const coverImage = blocks.find((block) => block.type === "image" && block.data.url)?.data.url || null;
+  const coverImage = blocks.find((block) => block.type === "image" && getStringValue((block.data as BlockData).url))?.data.url || null;
 
   return {
     title: normalizedTitle,
     slug: slugify(normalizedTitle),
-    excerpt: blocks.find((block) => block.data.content?.trim())?.data.content?.trim().slice(0, 160) || "",
+    excerpt: blocks.find((block) => getStringValue(block.data.content).trim())?.data.content?.toString().trim().slice(0, 160) || "",
     content: JSON.stringify({ title: normalizedTitle, blocks: apiBlocks }),
     coverImage,
+    categoryId: null,
     status,
     featured,
     tags: [],
@@ -197,8 +247,12 @@ export default function Editor({ articleId }: { articleId?: string }) {
   const queryClient = useQueryClient();
   const createArticle = useCreateArticle();
   const updateArticle = useUpdateArticle();
-  const { data: existingArticle, isLoading: articleLoading } = useAdminGetArticle(articleId as any, {
-    query: { enabled: !!articleId } as any
+  const articleIdNumber = articleId ? Number(articleId) : 0;
+  const { data: existingArticle, isLoading: articleLoading } = useAdminGetArticle(articleIdNumber, {
+    query: {
+      enabled: !!articleId && Number.isFinite(articleIdNumber) && articleIdNumber > 0,
+      queryKey: getAdminGetArticleQueryKey(articleIdNumber),
+    },
   });
 
   const [title, setTitle] = useState("Untitled");
@@ -212,32 +266,48 @@ export default function Editor({ articleId }: { articleId?: string }) {
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [featured, setFeatured] = useState(false);
   const { data: categoriesData } = useAdminListCategories();
-  const categories = (categoriesData as any)?.categories || (Array.isArray(categoriesData) ? categoriesData : []);
+  const categories: CategoryOption[] = Array.isArray(categoriesData)
+    ? categoriesData
+    : ((categoriesData as { categories?: CategoryOption[] } | undefined)?.categories ?? []);
   const textareasRef = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const inputsRef = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
     const saved = window.localStorage.getItem(STORAGE_KEY);
     if (!saved) return;
 
-    try {
-      const parsed = JSON.parse(saved);
-      let loadedTitle = parsed?.title;
-      
-      // Si le titre est un objet JSON, l'extraire correctement
-      if (typeof loadedTitle === "object" && loadedTitle !== null && loadedTitle.title) {
-        loadedTitle = loadedTitle.title;
+    window.setTimeout(() => {
+      try {
+        const parsed = JSON.parse(saved) as {
+          title?: string | { title?: string };
+          blocks?: Block[];
+          categoryIds?: string[];
+          featured?: boolean;
+        };
+        let loadedTitle = parsed?.title;
+
+        if (typeof loadedTitle === "object" && loadedTitle !== null && loadedTitle.title) {
+          loadedTitle = loadedTitle.title;
+        }
+
+        if (loadedTitle && typeof loadedTitle === "string") {
+          setTitle(loadedTitle);
+        }
+        if (Array.isArray(parsed.blocks)) {
+          setBlocks(parsed.blocks);
+        }
+        if (Array.isArray(parsed.categoryIds)) {
+          setCategoryIds(parsed.categoryIds);
+        }
+        if (typeof parsed.featured === "boolean") {
+          setFeatured(parsed.featured);
+        }
+      } catch {
+        // ignore invalid draft
       }
-      
-      // S'assurer que le titre est une chaîne
-      if (loadedTitle && typeof loadedTitle === "string") setTitle(loadedTitle);
-      if (Array.isArray(parsed.blocks)) setBlocks(parsed.blocks);
-      if (Array.isArray(parsed.categoryIds)) setCategoryIds(parsed.categoryIds);
-      if (typeof parsed.featured === "boolean") setFeatured(parsed.featured);
-    } catch {
-      // ignore invalid draft
-    }
+    }, 0);
   }, []);
 
   useEffect(() => {
@@ -255,52 +325,53 @@ export default function Editor({ articleId }: { articleId?: string }) {
   // Load existing article if articleId is provided
   useEffect(() => {
     if (!existingArticle || articleLoading) return;
-    
-    const article = existingArticle as any;
-    setTitle(article.title || "Untitled");
-    
-    // Parse content if it's a JSON string
-    let parsedContent: any = {};
-    if (article.content) {
-      if (typeof article.content === "string") {
-        try {
-          parsedContent = JSON.parse(article.content);
-        } catch (parseError) {
-          // If JSON parsing fails, treat as plain text and create a paragraph block
-          console.warn("Content is not valid JSON, treating as plain text:", article.content);
-          parsedContent = {
-            blocks: [
-              {
-                type: "paragraph",
-                text: article.content,
-              },
-            ],
-          };
+
+    window.setTimeout(() => {
+      const article = existingArticle as {
+        title?: string;
+        content?: string | { blocks?: Array<{ type?: string; [key: string]: unknown }> };
+        categoryId?: string;
+        featured?: boolean;
+      };
+      setTitle(article.title || "Untitled");
+
+      let parsedContent: { blocks?: Array<{ type?: string; [key: string]: unknown }> } = {};
+      if (article.content) {
+        if (typeof article.content === "string") {
+          try {
+            parsedContent = JSON.parse(article.content) as { blocks?: Array<{ type?: string; [key: string]: unknown }> };
+          } catch {
+            parsedContent = {
+              blocks: [
+                {
+                  type: "paragraph",
+                  text: article.content,
+                },
+              ],
+            };
+          }
+        } else {
+          parsedContent = article.content as { blocks?: Array<{ type?: string; [key: string]: unknown }> };
         }
-      } else {
-        parsedContent = article.content;
       }
-    }
-    
-    // Convert API blocks to editor blocks
-    if (parsedContent.blocks && Array.isArray(parsedContent.blocks)) {
-      const editorBlocks = parsedContent.blocks.map((block: any) => ({
-        id: nanoid(),
-        type: block.type,
-        data: block,
-      }));
-      setBlocks(editorBlocks);
-    }
-    
-    // Set category if available
-    if (article.categoryId) {
-      setCategoryIds([article.categoryId]);
-    }
-    
-    // Set featured status
-    if (typeof article.featured === "boolean") {
-      setFeatured(article.featured);
-    }
+
+      if (parsedContent.blocks && Array.isArray(parsedContent.blocks)) {
+        const editorBlocks = parsedContent.blocks.map((block) => ({
+          id: nanoid(),
+          type: (block.type as BlockType) || "paragraph",
+          data: block as BlockData,
+        }));
+        setBlocks(editorBlocks);
+      }
+
+      if (article.categoryId) {
+        setCategoryIds([article.categoryId]);
+      }
+
+      if (typeof article.featured === "boolean") {
+        setFeatured(article.featured);
+      }
+    }, 0);
   }, [existingArticle, articleLoading]);
 
   const filteredSlashOptions = useMemo(() => {
@@ -309,7 +380,7 @@ export default function Editor({ articleId }: { articleId?: string }) {
     return SLASH_OPTIONS.filter((option) => `${option.label} ${option.description}`.toLowerCase().includes(query));
   }, [slashQuery]);
 
-  const insertBlock = (blockId: string | null, type: BlockType, data?: Record<string, any>) => {
+  const insertBlock = (blockId: string | null, type: BlockType, data?: BlockData) => {
     const nextBlock = createBlock(type, data);
     setBlocks((current) => {
       if (!blockId) return [...current, nextBlock];
@@ -324,14 +395,14 @@ export default function Editor({ articleId }: { articleId?: string }) {
     setSlashQuery("");
   };
 
-  const replaceBlock = (blockId: string, type: BlockType, data?: Record<string, any>) => {
+  const replaceBlock = (blockId: string, type: BlockType, data?: BlockData) => {
     setBlocks((current) => current.map((block) => (block.id === blockId ? createBlock(type, data) : block)));
     setActiveBlockId(blockId);
     setSlashMenuForId(null);
     setSlashQuery("");
   };
 
-  const updateBlock = (blockId: string, patch: Record<string, any>) => {
+  const updateBlock = (blockId: string, patch: BlockData) => {
     setBlocks((current) => current.map((block) => (block.id === blockId ? { ...block, data: { ...block.data, ...patch } } : block)));
   };
 
@@ -352,11 +423,16 @@ export default function Editor({ articleId }: { articleId?: string }) {
     });
   };
 
+  const openSlashMenu = (blockId: string) => {
+    setActiveBlockId(blockId);
+    setSlashMenuForId(blockId);
+    setSlashQuery("");
+  };
+
   const handleBlockKeyDown = (event: React.KeyboardEvent, blockId: string) => {
-    if (event.key === "/") {
+    if (event.key === "/" || event.key === "Slash") {
       event.preventDefault();
-      setSlashMenuForId(blockId);
-      setSlashQuery("");
+      openSlashMenu(blockId);
       return;
     }
 
@@ -367,6 +443,24 @@ export default function Editor({ articleId }: { articleId?: string }) {
         insertBlock(blockId, "paragraph");
       }
     }
+  };
+
+  const handleBlockInput = (event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>, blockId: string) => {
+    const target = event.currentTarget;
+    const nextValue = target.value;
+    const lastChar = nextValue.slice(-1);
+
+    if (lastChar === "/" && nextValue.length > 0) {
+      const sanitizedValue = nextValue.slice(0, -1);
+      updateBlock(blockId, { content: sanitizedValue });
+      openSlashMenu(blockId);
+      requestAnimationFrame(() => {
+        target.setSelectionRange(sanitizedValue.length, sanitizedValue.length);
+      });
+      return;
+    }
+
+    updateBlock(blockId, { content: nextValue });
   };
 
   const handleUpload = async (blockId: string, file: File) => {
@@ -456,23 +550,47 @@ export default function Editor({ articleId }: { articleId?: string }) {
     try {
       setIsPublishing(true);
       const payload = buildArticlePayload(title, blocks, "published", featured);
-      payload.categoryId = categoryIds[0] || null;
+      payload.categoryId = categoryIds[0] ? Number(categoryIds[0]) : null;
       
-      if (articleId) {
-        // Update existing article - don't regenerate slug
-        const { slug, ...updateData } = payload;
-        await updateArticle.mutateAsync({ id: articleId as any, data: updateData as any });
+      if (articleIdNumber) {
+        const updateData: UpdateArticleBody = {
+          title: payload.title,
+          slug: payload.slug,
+          excerpt: payload.excerpt || null,
+          content: payload.content,
+          coverImage: payload.coverImage,
+          categoryId: payload.categoryId,
+          status: payload.status,
+          featured: payload.featured,
+          tags: payload.tags,
+          seoTitle: payload.seoTitle ?? null,
+          seoDescription: payload.seoDescription ?? null,
+        };
+        await updateArticle.mutateAsync({ id: articleIdNumber, data: updateData });
       } else {
-        // Create new article
-        await createArticle.mutateAsync({ data: payload as any });
+        const createData: CreateArticleBody = {
+          title: payload.title,
+          slug: payload.slug,
+          excerpt: payload.excerpt || null,
+          content: payload.content,
+          coverImage: payload.coverImage,
+          categoryId: payload.categoryId,
+          status: payload.status,
+          featured: payload.featured,
+          tags: payload.tags,
+          seoTitle: payload.seoTitle ?? null,
+          seoDescription: payload.seoDescription ?? null,
+        };
+        await createArticle.mutateAsync({ data: createData });
       }
       
       window.localStorage.removeItem(STORAGE_KEY);
       queryClient.invalidateQueries({ queryKey: getAdminListArticlesQueryKey() });
       toast.success(articleId ? "Article updated" : "Article published");
       router.push("/admin/articles");
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || (articleId ? "Could not update article" : "Could not publish article"));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(message || (articleId ? "Could not update article" : "Could not publish article"));
     } finally {
       setIsPublishing(false);
     }
@@ -482,23 +600,47 @@ export default function Editor({ articleId }: { articleId?: string }) {
     try {
       setIsSavingDraft(true);
       const payload = buildArticlePayload(title, blocks, "draft", featured);
-      payload.categoryId = categoryIds[0] || null;
+      payload.categoryId = categoryIds[0] ? Number(categoryIds[0]) : null;
       
-      if (articleId) {
-        // Update existing article - don't regenerate slug
-        const { slug, ...updateData } = payload;
-        await updateArticle.mutateAsync({ id: articleId as any, data: updateData as any });
+      if (articleIdNumber) {
+        const updateData: UpdateArticleBody = {
+          title: payload.title,
+          slug: payload.slug,
+          excerpt: payload.excerpt || null,
+          content: payload.content,
+          coverImage: payload.coverImage,
+          categoryId: payload.categoryId,
+          status: payload.status,
+          featured: payload.featured,
+          tags: payload.tags,
+          seoTitle: payload.seoTitle ?? null,
+          seoDescription: payload.seoDescription ?? null,
+        };
+        await updateArticle.mutateAsync({ id: articleIdNumber, data: updateData });
       } else {
-        // Create new article
-        await createArticle.mutateAsync({ data: payload as any });
+        const createData: CreateArticleBody = {
+          title: payload.title,
+          slug: payload.slug,
+          excerpt: payload.excerpt || null,
+          content: payload.content,
+          coverImage: payload.coverImage,
+          categoryId: payload.categoryId,
+          status: payload.status,
+          featured: payload.featured,
+          tags: payload.tags,
+          seoTitle: payload.seoTitle ?? null,
+          seoDescription: payload.seoDescription ?? null,
+        };
+        await createArticle.mutateAsync({ data: createData });
       }
       
       window.localStorage.removeItem(STORAGE_KEY);
       queryClient.invalidateQueries({ queryKey: getAdminListArticlesQueryKey() });
       toast.success("Draft saved");
       router.push("/admin/articles");
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Could not save draft");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      toast.error(message || "Could not save draft");
     } finally {
       setIsSavingDraft(false);
     }
@@ -512,8 +654,6 @@ export default function Editor({ articleId }: { articleId?: string }) {
   };
 
   const renderBlock = (block: Block) => {
-    const isActive = activeBlockId === block.id;
-
     switch (block.type) {
       case "heading1":
       case "heading2":
@@ -530,6 +670,7 @@ export default function Editor({ articleId }: { articleId?: string }) {
               onChange={(event) => updateBlock(block.id, { content: event.target.value })}
               onFocus={() => setActiveBlockId(block.id)}
               onKeyDown={(event) => handleBlockKeyDown(event, block.id)}
+              onInput={(event) => handleBlockInput(event, block.id)}
               placeholder={`Heading ${level}`}
               className={`w-full border-none bg-transparent px-0 py-2 outline-none placeholder:text-slate-400 ${headingClass}`}
             />
@@ -566,6 +707,7 @@ export default function Editor({ articleId }: { articleId?: string }) {
               onChange={(event) => updateBlock(block.id, { url: event.target.value })}
               onFocus={() => setActiveBlockId(block.id)}
               onKeyDown={(event) => handleBlockKeyDown(event, block.id)}
+              onInput={(event) => handleBlockInput(event, block.id)}
               placeholder="https://..."
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none"
             />
@@ -579,6 +721,7 @@ export default function Editor({ articleId }: { articleId?: string }) {
             onChange={(event) => updateBlock(block.id, { content: event.target.value })}
             onFocus={() => setActiveBlockId(block.id)}
             onKeyDown={(event) => handleBlockKeyDown(event, block.id)}
+            onInput={(event) => handleBlockInput(event, block.id)}
             placeholder="Quote"
             className="min-h-[90px] w-full resize-none border-none bg-transparent px-0 py-2 text-lg italic text-slate-700 outline-none placeholder:text-slate-400"
           />
@@ -590,6 +733,7 @@ export default function Editor({ articleId }: { articleId?: string }) {
             onChange={(event) => updateBlock(block.id, { content: event.target.value })}
             onFocus={() => setActiveBlockId(block.id)}
             onKeyDown={(event) => handleBlockKeyDown(event, block.id)}
+            onInput={(event) => handleBlockInput(event, block.id)}
             placeholder="Write code"
             className="min-h-[120px] w-full resize-none rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 font-mono text-sm text-slate-100 outline-none placeholder:text-slate-500"
           />
@@ -601,6 +745,7 @@ export default function Editor({ articleId }: { articleId?: string }) {
             onChange={(event) => updateBlock(block.id, { content: event.target.value })}
             onFocus={() => setActiveBlockId(block.id)}
             onKeyDown={(event) => handleBlockKeyDown(event, block.id)}
+            onInput={(event) => handleBlockInput(event, block.id)}
             placeholder="- Item one\n- Item two"
             className="min-h-[90px] w-full resize-none border-none bg-transparent px-0 py-2 text-base text-slate-700 outline-none placeholder:text-slate-400"
           />
@@ -682,8 +827,8 @@ export default function Editor({ articleId }: { articleId?: string }) {
       case "columns": {
         const rawLeft = block.data.left;
         const rawRight = block.data.right;
-        const left = typeof rawLeft === "string" ? { type: "paragraph", content: rawLeft } : rawLeft || { type: "paragraph", content: "" };
-        const right = typeof rawRight === "string" ? { type: "paragraph", content: rawRight } : rawRight || { type: "paragraph", content: "" };
+        const left: ColumnBlockData = typeof rawLeft === "string" ? { type: "paragraph", content: rawLeft } : (rawLeft as ColumnBlockData | undefined) ?? { type: "paragraph", content: "" };
+        const right: ColumnBlockData = typeof rawRight === "string" ? { type: "paragraph", content: rawRight } : (rawRight as ColumnBlockData | undefined) ?? { type: "paragraph", content: "" };
         return (
           <div className="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-2">
             <div>
@@ -782,6 +927,8 @@ export default function Editor({ articleId }: { articleId?: string }) {
                   value={right.content || ""}
                   onChange={(event) => updateBlock(block.id, { right: { ...right, content: event.target.value } })}
                   onFocus={() => setActiveBlockId(block.id)}
+                  onKeyDown={(event) => handleBlockKeyDown(event, block.id)}
+                  onInput={(event) => handleBlockInput(event, block.id)}
                   placeholder="Right column"
                   className="min-h-[90px] resize-none border-none bg-transparent p-0 text-sm outline-none"
                 />
@@ -800,6 +947,7 @@ export default function Editor({ articleId }: { articleId?: string }) {
             onChange={(event) => updateBlock(block.id, { content: event.target.value })}
             onFocus={() => setActiveBlockId(block.id)}
             onKeyDown={(event) => handleBlockKeyDown(event, block.id)}
+            onInput={(event) => handleBlockInput(event, block.id)}
             placeholder="Start writing..."
             className="min-h-[70px] w-full resize-none border-none bg-transparent px-0 py-2 text-base text-slate-700 outline-none placeholder:text-slate-400"
           />
@@ -820,7 +968,7 @@ export default function Editor({ articleId }: { articleId?: string }) {
             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
               <span className="font-semibold">Catégorie :</span>
               <div className="flex flex-wrap gap-2">
-                {categories.map((c: any) => {
+                {categories.map((c: CategoryOption) => {
                   const catId = String(c._id || c.id || "");
                   if (!catId) return null;
                   const selected = categoryIds.includes(catId);
@@ -910,6 +1058,9 @@ export default function Editor({ articleId }: { articleId?: string }) {
                       {renderBlock(block)}
                     </div>
                     <div className="flex flex-col gap-2 pt-1 opacity-0 transition group-hover:opacity-100">
+                      <button type="button" onClick={() => openSlashMenu(block.id)} className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 shadow-sm sm:hidden">
+                        <Plus className="h-4 w-4" />
+                      </button>
                       <button type="button" onClick={() => insertBlock(block.id, "paragraph")} className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 shadow-sm">
                         <CopyPlus className="h-4 w-4" />
                       </button>
