@@ -37,7 +37,18 @@ export async function GET(req: NextRequest) {
       .exec();
 
     const categoryIds = [
-      ...new Set(articles.map((a: any) => a.categoryId).filter(Boolean)),
+      ...new Set(
+        articles.flatMap((a: any) => {
+          const ids = [];
+          if (a.categoryId) ids.push(a.categoryId.toString());
+          if (Array.isArray(a.categoryIds)) {
+            a.categoryIds.forEach((id: any) => {
+              if (id) ids.push(id.toString());
+            });
+          }
+          return ids;
+        })
+      ),
     ];
     const categories =
       categoryIds.length > 0
@@ -90,6 +101,34 @@ export async function GET(req: NextRequest) {
                   articleCount: 0,
                 }
               : null,
+          categories: Array.isArray(a.categoryIds)
+            ? a.categoryIds
+                .map((id: any) => {
+                  const cat = catMap[id.toString()];
+                  return cat
+                    ? {
+                        id: cat._id.toString(),
+                        name: cat.name,
+                        slug: cat.slug,
+                        color: cat.color,
+                        description: cat.description,
+                        articleCount: 0,
+                      }
+                    : null;
+                })
+                .filter(Boolean)
+            : a.categoryId && catMap[a.categoryId.toString()]
+            ? [
+                {
+                  id: catMap[a.categoryId.toString()]._id.toString(),
+                  name: catMap[a.categoryId.toString()].name,
+                  slug: catMap[a.categoryId.toString()].slug,
+                  color: catMap[a.categoryId.toString()].color,
+                  description: catMap[a.categoryId.toString()].description,
+                  articleCount: 0,
+                },
+              ]
+            : [],
           author:
             a.authorId && authorMap[a.authorId.toString()]
               ? {

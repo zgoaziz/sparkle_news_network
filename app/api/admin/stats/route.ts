@@ -48,7 +48,19 @@ export async function GET() {
   ]);
 
   const categoryIds = [
-    ...new Set(articlesByCategory.map((a: any) => a._id).filter(Boolean)),
+    ...new Set([
+      ...articlesByCategory.map((a: any) => a._id).filter(Boolean),
+      ...recentArticlesRaw.flatMap((a: any) => {
+        const ids = [];
+        if (a.categoryId) ids.push(a.categoryId.toString());
+        if (Array.isArray(a.categoryIds)) {
+          a.categoryIds.forEach((id: any) => {
+            if (id) ids.push(id.toString());
+          });
+        }
+        return ids;
+      })
+    ]),
   ];
   const categories =
     categoryIds.length > 0
@@ -81,6 +93,18 @@ export async function GET() {
       a.categoryId && catMap[a.categoryId.toString()]
         ? { ...catMap[a.categoryId.toString()], articleCount: 0 }
         : null,
+    categories: Array.isArray(a.categoryIds)
+      ? a.categoryIds
+          .map((id: any) => {
+            const cat = catMap[id.toString()];
+            return cat
+              ? { ...cat, articleCount: 0 }
+              : null;
+          })
+          .filter(Boolean)
+      : a.categoryId && catMap[a.categoryId.toString()]
+      ? [{ ...catMap[a.categoryId.toString()], articleCount: 0 }]
+      : [],
     author: authorMap[a.authorId?.toString?.()] || {
       id: a.authorId,
       name: "Author",

@@ -30,6 +30,34 @@ function buildArticleSummary(
             articleCount: 0,
           }
         : null,
+    categories: Array.isArray(a.categoryIds)
+      ? a.categoryIds
+          .map((id: any) => {
+            const cat = catMap[id.toString()];
+            return cat
+              ? {
+                  id: cat._id.toString(),
+                  name: cat.name,
+                  slug: cat.slug,
+                  color: cat.color,
+                  description: cat.description,
+                  articleCount: 0,
+                }
+              : null;
+          })
+          .filter(Boolean)
+      : a.categoryId && catMap[a.categoryId.toString()]
+      ? [
+          {
+            id: catMap[a.categoryId.toString()]._id.toString(),
+            name: catMap[a.categoryId.toString()].name,
+            slug: catMap[a.categoryId.toString()].slug,
+            color: catMap[a.categoryId.toString()].color,
+            description: catMap[a.categoryId.toString()].description,
+            articleCount: 0,
+          },
+        ]
+      : [],
     author: authorMap[a.authorId.toString()]
       ? {
           id: authorMap[a.authorId.toString()]._id.toString(),
@@ -53,7 +81,7 @@ export async function GET(
     const { slug } = await context.params;
     const article = await articlesTable
       .findOne({ slug })
-      .select("_id categoryId")
+      .select("_id categoryId categoryIds")
       .lean()
       .exec();
 
@@ -63,8 +91,18 @@ export async function GET(
 
     const articleData = article as any;
     const conditions: any = { status: "published" };
-    if (articleData.categoryId) {
-      conditions.categoryId = articleData.categoryId;
+    
+    const articleCategoryIds = Array.isArray(articleData.categoryIds) && articleData.categoryIds.length > 0
+      ? articleData.categoryIds
+      : articleData.categoryId
+      ? [articleData.categoryId]
+      : [];
+
+    if (articleCategoryIds.length > 0) {
+      conditions.$or = [
+        { categoryId: { $in: articleCategoryIds } },
+        { categoryIds: { $in: articleCategoryIds } }
+      ];
     }
 
     const similarArticles = await articlesTable
@@ -79,7 +117,18 @@ export async function GET(
       .slice(0, 3);
 
     const categoryIds = [
-      ...new Set(filtered.map((a: any) => a.categoryId).filter(Boolean)),
+      ...new Set(
+        filtered.flatMap((a: any) => {
+          const ids = [];
+          if (a.categoryId) ids.push(a.categoryId.toString());
+          if (Array.isArray(a.categoryIds)) {
+            a.categoryIds.forEach((id: any) => {
+              if (id) ids.push(id.toString());
+            });
+          }
+          return ids;
+        })
+      ),
     ];
     const authorIds = [...new Set(filtered.map((a: any) => a.authorId))];
 

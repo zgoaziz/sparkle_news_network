@@ -103,6 +103,7 @@ export interface ArticleSummary {
   excerpt?: string | null;
   coverImage?: string | null;
   category?: Category;
+  categories?: Category[];
   author?: AuthorInfo;
   publishedAt?: string | null;
   readTime?: number | null;
@@ -110,6 +111,7 @@ export interface ArticleSummary {
   likes: number;
   featured: boolean;
   tags: string[];
+  commentCount?: number;
 }
 
 export type ArticleDetailStatus =
@@ -495,6 +497,7 @@ export type AdminListUsersParams = {
 export type AdminListCommentsParams = {
   status?: AdminListCommentsStatus;
   page?: number;
+  articleId?: string;
 };
 
 export type AdminListCommentsStatus =

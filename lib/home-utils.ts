@@ -7,20 +7,29 @@ export function fdate(d?: string | null) {
   return format(new Date(d), "d MMM yyyy", { locale: fr });
 }
 
-export function matchesCategory(article: ArticleSummary, category: Category) {
-  const articleCategory = article.category;
-  const articleCategoryId = article.category?.id;
+export function matchesCategory(article: any, category: Category) {
   const categoryId = category.id;
+  const categorySlug = category.slug?.toLowerCase();
+  const categoryName = category.name?.toLowerCase();
 
-  return (
-    (articleCategoryId != null && categoryId != null && String(articleCategoryId) === String(categoryId)) ||
-    (articleCategory?.slug &&
-      category.slug &&
-      articleCategory.slug.toLowerCase() === category.slug.toLowerCase()) ||
-    (articleCategory?.name &&
-      category.name &&
-      articleCategory.name.toLowerCase() === category.name.toLowerCase())
-  );
+  const checkSingleCat = (cat: any) => {
+    if (!cat) return false;
+    const catId = cat.id;
+    const catSlug = cat.slug?.toLowerCase();
+    const catName = cat.name?.toLowerCase();
+
+    return (
+      (catId != null && categoryId != null && String(catId) === String(categoryId)) ||
+      (catSlug && categorySlug && catSlug === categorySlug) ||
+      (catName && categoryName && catName === categoryName)
+    );
+  };
+
+  if (Array.isArray(article.categories) && article.categories.length > 0) {
+    return article.categories.some(checkSingleCat);
+  }
+
+  return checkSingleCat(article.category);
 }
 
 export function buildCategorySections(

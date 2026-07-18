@@ -32,7 +32,10 @@ export async function GET(
     const offset = (page - 1) * limit;
 
     const conditions = {
-      categoryId: category._id,
+      $or: [
+        { categoryId: category._id },
+        { categoryIds: category._id }
+      ],
       status: "published",
     };
 

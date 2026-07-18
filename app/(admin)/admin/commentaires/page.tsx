@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   useAdminListComments,
   useUpdateCommentStatus,
@@ -20,9 +21,14 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Check, X, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, X, Trash2, ChevronLeft, ChevronRight, MessageCircle, Filter } from "lucide-react";
 
-export default function AdminComments() {
+function AdminCommentsContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const articleId = searchParams?.get("articleId") || undefined;
+  const articleTitle = searchParams?.get("articleTitle") || undefined;
+
   const queryClient = useQueryClient();
   const [status, setStatus] = useState("all");
   const [page, setPage] = useState(1);
@@ -31,6 +37,7 @@ export default function AdminComments() {
   const { data, isLoading } = useAdminListComments({
     page,
     status: status === "all" ? undefined : status as any,
+    articleId: articleId,
   });
   const updateStatus = useUpdateCommentStatus();
   const deleteComment = useAdminDeleteComment();
@@ -55,6 +62,11 @@ export default function AdminComments() {
     });
   }
 
+  function clearArticleFilter() {
+    setPage(1);
+    router.push("/admin/commentaires");
+  }
+
   const statusBadge = (s: string) => {
     if (s === "approved") return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Approuvé</Badge>;
     if (s === "pending") return <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">En attente</Badge>;
@@ -63,7 +75,7 @@ export default function AdminComments() {
 
   return (
     <AdminLayout title="Commentaires">
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <Select value={status} onValueChange={(v) => { setStatus(v); setPage(1); }}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -76,12 +88,46 @@ export default function AdminComments() {
         <span className="text-sm text-muted-foreground self-center">{total} commentaire{total > 1 ? "s" : ""}</span>
       </div>
 
+      {/* Active article filter banner */}
+      {articleId && (
+        <div className="flex items-center gap-3 mb-5 px-4 py-3 rounded-xl bg-[#006FE6]/8 border border-[#006FE6]/20">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <Filter className="h-4 w-4 text-[#006FE6] shrink-0" />
+            <span className="text-sm text-[#006FE6] font-medium">Filtré par article :</span>
+            <span className="text-sm font-semibold text-foreground truncate">
+              {articleTitle ? decodeURIComponent(articleTitle) : `#${articleId}`}
+            </span>
+          </div>
+          <button
+            onClick={clearArticleFilter}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0 px-2.5 py-1.5 rounded-lg hover:bg-muted"
+          >
+            <X className="h-3.5 w-3.5" />
+            Effacer le filtre
+          </button>
+        </div>
+      )}
+
       <div className="bg-card border border-card-border rounded-2xl overflow-hidden">
         <div className="divide-y divide-border">
           {isLoading
             ? Array.from({ length: 6 }).map((_, i) => <div key={i} className="p-4"><Skeleton className="h-16 w-full" /></div>)
             : comments.length === 0
-              ? <div className="py-16 text-center text-muted-foreground">Aucun commentaire</div>
+              ? (
+                <div className="py-16 text-center text-muted-foreground">
+                  <MessageCircle className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                  <p className="font-medium">
+                    {articleId
+                      ? "Aucun commentaire pour cet article"
+                      : "Aucun commentaire"}
+                  </p>
+                  {articleId && (
+                    <button onClick={clearArticleFilter} className="mt-2 text-sm text-[#006FE6] hover:underline">
+                      Voir tous les commentaires
+                    </button>
+                  )}
+                </div>
+              )
               : comments.map((c: any) => (
                   <div key={c.id} className="p-4 hover:bg-muted/30 transition-colors">
                     <div className="flex items-start gap-3">
@@ -97,9 +143,11 @@ export default function AdminComments() {
                             {c.createdAt ? format(new Date(c.createdAt), "d MMM yyyy 'à' HH:mm", { locale: fr }) : ""}
                           </span>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-1">
-                          Article : <span className="font-medium text-foreground">{c.articleTitle || `#${c.articleId}`}</span>
-                        </p>
+                        {!articleId && (
+                          <p className="text-sm text-muted-foreground mb-1">
+                            Article : <span className="font-medium text-foreground">{c.articleTitle || `#${c.articleId}`}</span>
+                          </p>
+                        )}
                         <p className="text-sm">{c.content}</p>
                       </div>
                       <div className="flex gap-1 shrink-0">
@@ -146,5 +194,21 @@ export default function AdminComments() {
         </AlertDialogContent>
       </AlertDialog>
     </AdminLayout>
+  );
+}
+
+export default function AdminComments() {
+  return (
+    <Suspense fallback={
+      <AdminLayout title="Commentaires">
+        <div className="space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+          ))}
+        </div>
+      </AdminLayout>
+    }>
+      <AdminCommentsContent />
+    </Suspense>
   );
 }

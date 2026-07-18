@@ -33,6 +33,34 @@ function buildSummary(
             articleCount: 0,
           }
         : null,
+    categories: Array.isArray(article.categoryIds)
+      ? article.categoryIds
+          .map((id: any) => {
+            const cat = catMap[id.toString()];
+            return cat
+              ? {
+                  id: cat._id.toString(),
+                  name: cat.name,
+                  slug: cat.slug,
+                  color: cat.color,
+                  description: cat.description,
+                  articleCount: 0,
+                }
+              : null;
+          })
+          .filter(Boolean)
+      : article.categoryId && catMap[article.categoryId.toString()]
+      ? [
+          {
+            id: catMap[article.categoryId.toString()]._id.toString(),
+            name: catMap[article.categoryId.toString()].name,
+            slug: catMap[article.categoryId.toString()].slug,
+            color: catMap[article.categoryId.toString()].color,
+            description: catMap[article.categoryId.toString()].description,
+            articleCount: 0,
+          },
+        ]
+      : [],
     author: authorMap[article.authorId?.toString()]
       ? {
           id: authorMap[article.authorId.toString()]._id.toString(),
@@ -56,7 +84,7 @@ export async function GET(req: NextRequest) {
     const featuredArticles = await articlesTable
       .find({ status: "published", featured: true })
       .select(
-        "title slug excerpt coverImage publishedAt readTime views likes featured tags categoryId authorId",
+        "title slug excerpt coverImage publishedAt readTime views likes featured tags categoryId categoryIds authorId",
       )
       .sort({ publishedAt: -1 })
       .limit(limit)
@@ -69,7 +97,7 @@ export async function GET(req: NextRequest) {
         : await articlesTable
             .find({ status: "published" })
             .select(
-              "title slug excerpt coverImage publishedAt readTime views likes featured tags categoryId authorId",
+              "title slug excerpt coverImage publishedAt readTime views likes featured tags categoryId categoryIds authorId",
             )
             .sort({ publishedAt: -1 })
             .limit(limit)
@@ -78,7 +106,16 @@ export async function GET(req: NextRequest) {
 
     const categoryIds = [
       ...new Set(
-        baseArticles.map((article: any) => article.categoryId).filter(Boolean),
+        baseArticles.flatMap((a: any) => {
+          const ids = [];
+          if (a.categoryId) ids.push(a.categoryId.toString());
+          if (Array.isArray(a.categoryIds)) {
+            a.categoryIds.forEach((id: any) => {
+              if (id) ids.push(id.toString());
+            });
+          }
+          return ids;
+        })
       ),
     ];
     const authorIds = [

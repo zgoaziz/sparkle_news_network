@@ -17,7 +17,10 @@ export async function GET() {
     const categoriesWithCount = await Promise.all(
       categories.map(async (cat: any) => {
         const articleCount = await articlesTable.countDocuments({
-          categoryId: cat._id,
+          $or: [
+            { categoryId: cat._id },
+            { categoryIds: cat._id }
+          ],
           status: "published",
         });
         return {

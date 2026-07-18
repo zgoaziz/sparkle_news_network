@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import { connectDB } from "@/lib/db";
-import { articlesTable, categoriesTable, usersTable } from "@/lib/db/schema";
+import { articlesTable, categoriesTable, usersTable, commentsTable } from "@/lib/db/schema";
 import { getAuthUser } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -71,6 +71,15 @@ export async function GET(req: NextRequest) {
       authors.map((author: any) => [author._id.toString(), author]),
     );
 
+    const articleIds = articles.map((article: any) => article._id);
+    const commentCounts = await commentsTable.aggregate([
+      { $match: { articleId: { $in: articleIds } } },
+      { $group: { _id: "$articleId", count: { $sum: 1 } } }
+    ]).exec();
+    const commentCountMap = Object.fromEntries(
+      commentCounts.map((c: any) => [c._id.toString(), c.count])
+    );
+
     const formattedArticles = articles.map((article: any) => {
       const articleCategoryIds = Array.isArray(article.categoryIds)
         ? article.categoryIds.map((id: any) => id.toString())
@@ -103,6 +112,7 @@ export async function GET(req: NextRequest) {
         tags: article.tags,
         views: article.views,
         likes: article.likes,
+        commentCount: commentCountMap[article._id.toString()] || 0,
         publishedAt: article.publishedAt,
         createdAt: article.createdAt,
         updatedAt: article.updatedAt,

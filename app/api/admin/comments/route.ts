@@ -10,10 +10,14 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(Number(searchParams.get("limit")) || 15, 50);
     const offset = (page - 1) * limit;
     const status = searchParams.get("status") || undefined;
+    const articleId = searchParams.get("articleId") || undefined;
 
     const conditions: any = {};
     if (status && status !== "all") {
       conditions.status = status;
+    }
+    if (articleId) {
+      conditions.articleId = articleId;
     }
 
     const comments = await commentsTable

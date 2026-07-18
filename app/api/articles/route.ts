@@ -33,6 +33,34 @@ export async function buildArticleSummary(
             articleCount: 0,
           }
         : null,
+    categories: Array.isArray(a.categoryIds)
+      ? a.categoryIds
+          .map((id: any) => {
+            const cat = catMap[id.toString()];
+            return cat
+              ? {
+                  id: cat._id.toString(),
+                  name: cat.name,
+                  slug: cat.slug,
+                  color: cat.color,
+                  description: cat.description,
+                  articleCount: 0,
+                }
+              : null;
+          })
+          .filter(Boolean)
+      : a.categoryId && catMap[a.categoryId.toString()]
+      ? [
+          {
+            id: catMap[a.categoryId.toString()]._id.toString(),
+            name: catMap[a.categoryId.toString()].name,
+            slug: catMap[a.categoryId.toString()].slug,
+            color: catMap[a.categoryId.toString()].color,
+            description: catMap[a.categoryId.toString()].description,
+            articleCount: 0,
+          },
+        ]
+      : [],
     author: authorMap[a.authorId.toString()]
       ? {
           id: authorMap[a.authorId.toString()]._id.toString(),
@@ -49,7 +77,18 @@ export async function buildArticleSummary(
 
 export async function getCatAndAuthorMaps(articles: any[]) {
   const categoryIds = [
-    ...new Set(articles.map((a) => a.categoryId).filter(Boolean)),
+    ...new Set(
+      articles.flatMap((a: any) => {
+        const ids = [];
+        if (a.categoryId) ids.push(a.categoryId.toString());
+        if (Array.isArray(a.categoryIds)) {
+          a.categoryIds.forEach((id: any) => {
+            if (id) ids.push(id.toString());
+          });
+        }
+        return ids;
+      })
+    ),
   ];
   const authorIds = [...new Set(articles.map((a) => a.authorId))];
 
@@ -87,7 +126,12 @@ export async function GET(req: NextRequest) {
     const sort = searchParams.get("sort") || "latest";
 
     const conditions: any = { status: "published" };
-    if (categoryId) conditions.categoryId = categoryId;
+    if (categoryId) {
+      conditions.$or = [
+        { categoryId: categoryId },
+        { categoryIds: categoryId }
+      ];
+    }
     if (search) conditions.title = { $regex: search, $options: "i" };
     if (tag) conditions.tags = tag;
 

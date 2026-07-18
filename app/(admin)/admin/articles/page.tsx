@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
-  Plus, Search, Edit, Trash2, Eye, Star, ChevronLeft, ChevronRight, Filter, Image as ImageIcon
+  Plus, Search, Edit, Trash2, Eye, Star, ChevronLeft, ChevronRight, Filter, Image as ImageIcon, MessageCircle
 } from "lucide-react";
 
 export default function AdminArticles() {
@@ -101,6 +101,7 @@ export default function AdminArticles() {
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Statut</th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden md:table-cell">Date</th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground hidden lg:table-cell">Vues</th>
+                <th className="text-center px-4 py-3 font-semibold text-muted-foreground hidden lg:table-cell">Commentaires</th>
                 <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Actions</th>
               </tr>
             </thead>
@@ -108,7 +109,7 @@ export default function AdminArticles() {
               {isLoading
                 ? Array.from({ length: 8 }).map((_, i) => (
                   <tr key={i}>
-                      {Array.from({ length: 8 }).map((_, j) => (
+                      {Array.from({ length: 9 }).map((_, j) => (
                         <td key={j} className="px-4 py-3"><Skeleton className="h-5 w-full" /></td>
                       ))}
                     </tr>
@@ -178,6 +179,16 @@ export default function AdminArticles() {
                         <span className="flex items-center gap-1 text-muted-foreground text-xs">
                           <Eye className="h-3 w-3" />{(a.views || 0).toLocaleString("fr")}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell text-center">
+                        <button
+                          onClick={() => router.push(`/admin/commentaires?articleId=${a.id}&articleTitle=${encodeURIComponent(a.title)}`)}
+                          title={`Voir les commentaires de "${a.title}"`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all hover:bg-[#006FE6]/10 hover:text-[#006FE6] text-muted-foreground group"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5 group-hover:scale-110 transition-transform" />
+                          <span>{(a.commentCount || 0).toLocaleString("fr")}</span>
+                        </button>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1 justify-end">
