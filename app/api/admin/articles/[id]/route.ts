@@ -74,6 +74,14 @@ export async function PUT(
 
     const data = await req.json();
 
+    const existing = await articlesTable.findById(p.id).lean().exec() as any;
+    if (!existing) {
+      return NextResponse.json(
+        { ok: false, message: "Article introuvable" },
+        { status: 404 },
+      );
+    }
+
     // Explicitly handle categoryIds: ensure primary categoryId stays in sync
     const updatePayload: any = { ...data, updatedAt: new Date() };
     if (Array.isArray(data.categoryIds) && data.categoryIds.length > 0) {
@@ -86,6 +94,14 @@ export async function PUT(
     } else {
       updatePayload.categoryId = null;
       updatePayload.categoryIds = [];
+    }
+
+    if (updatePayload.status === "published") {
+      if (!existing.publishedAt && !updatePayload.publishedAt) {
+        updatePayload.publishedAt = new Date();
+      }
+    } else if (updatePayload.status === "draft") {
+      updatePayload.publishedAt = null;
     }
 
     const updated = (await articlesTable

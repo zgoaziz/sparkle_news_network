@@ -133,11 +133,29 @@ export default function AdminArticles() {
                         </div>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
-                        {a.category && (
-                          <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ color: a.category.color || "#006FE6", backgroundColor: `${a.category.color || "#006FE6"}18` }}>
-                            {a.category.name}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {a.categories && a.categories.length > 0 ? (
+                            <>
+                              <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ color: a.categories[0].color || "#006FE6", backgroundColor: `${a.categories[0].color || "#006FE6"}18` }}>
+                                {a.categories[0].name}
+                              </span>
+                              {a.categories.length > 1 && (
+                                <span 
+                                  title={a.categories.slice(1).map((c: any) => c.name).join(", ")}
+                                  className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium cursor-help"
+                                >
+                                  +{a.categories.length - 1}
+                                </span>
+                              )}
+                            </>
+                          ) : a.category ? (
+                            <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ color: a.category.color || "#006FE6", backgroundColor: `${a.category.color || "#006FE6"}18` }}>
+                              {a.category.name}
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">{a.author?.name}</td>
                       <td className="px-4 py-3">
@@ -146,7 +164,15 @@ export default function AdminArticles() {
                         </Badge>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell text-muted-foreground text-xs">
-                        {a.publishedAt ? format(new Date(a.publishedAt), "d MMM yyyy", { locale: fr }) : "—"}
+                        {a.publishedAt ? (
+                          format(new Date(a.publishedAt), "d MMM yyyy", { locale: fr })
+                        ) : a.createdAt ? (
+                          <span title="Date de création">
+                            {format(new Date(a.createdAt), "d MMM yyyy", { locale: fr })}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="px-4 py-3 hidden lg:table-cell">
                         <span className="flex items-center gap-1 text-muted-foreground text-xs">

@@ -32,7 +32,16 @@ export async function GET(req: NextRequest) {
 
     const categoryIds = [
       ...new Set(
-        articles.map((article: any) => article.categoryId).filter(Boolean),
+        articles.flatMap((article: any) => {
+          const ids = [];
+          if (article.categoryId) ids.push(article.categoryId.toString());
+          if (Array.isArray(article.categoryIds)) {
+            article.categoryIds.forEach((id: any) => {
+              if (id) ids.push(id.toString());
+            });
+          }
+          return ids;
+        })
       ),
     ];
     const authorIds = [
@@ -62,30 +71,46 @@ export async function GET(req: NextRequest) {
       authors.map((author: any) => [author._id.toString(), author]),
     );
 
-    const formattedArticles = articles.map((article: any) => ({
-      id: article._id.toString(),
-      title: article.title,
-      slug: article.slug,
-      excerpt: article.excerpt,
-      coverImage: article.coverImage,
-      status: article.status,
-      featured: article.featured,
-      tags: article.tags,
-      views: article.views,
-      likes: article.likes,
-      publishedAt: article.publishedAt,
-      createdAt: article.createdAt,
-      updatedAt: article.updatedAt,
-      category: article.categoryId
-        ? {
-            id: article.categoryId.toString(),
-            name: categoryMap[article.categoryId.toString()]?.name || "",
-            slug: categoryMap[article.categoryId.toString()]?.slug || "",
-            color: categoryMap[article.categoryId.toString()]?.color || null,
-          }
-        : null,
-      author: authorMap[article.authorId?.toString()] || null,
-    }));
+    const formattedArticles = articles.map((article: any) => {
+      const articleCategoryIds = Array.isArray(article.categoryIds)
+        ? article.categoryIds.map((id: any) => id.toString())
+        : article.categoryId
+        ? [article.categoryId.toString()]
+        : [];
+      
+      const articleCategories = articleCategoryIds
+        .map((id: string) => {
+          const cat = categoryMap[id];
+          return cat
+            ? {
+                id,
+                name: cat.name || "",
+                slug: cat.slug || "",
+                color: cat.color || null,
+              }
+            : null;
+        })
+        .filter(Boolean);
+
+      return {
+        id: article._id.toString(),
+        title: article.title,
+        slug: article.slug,
+        excerpt: article.excerpt,
+        coverImage: article.coverImage,
+        status: article.status,
+        featured: article.featured,
+        tags: article.tags,
+        views: article.views,
+        likes: article.likes,
+        publishedAt: article.publishedAt,
+        createdAt: article.createdAt,
+        updatedAt: article.updatedAt,
+        category: articleCategories[0] || null,
+        categories: articleCategories,
+        author: authorMap[article.authorId?.toString()] || null,
+      };
+    });
 
     return NextResponse.json({
       articles: formattedArticles,
@@ -131,6 +156,10 @@ export async function POST(req: NextRequest) {
     } else if (data.categoryId) {
       articleData.categoryId = data.categoryId;
       articleData.categoryIds = [data.categoryId];
+    }
+
+    if (articleData.status === "published" && !articleData.publishedAt) {
+      articleData.publishedAt = new Date();
     }
 
     const created = await new (articlesTable as any)(articleData, { strict: false }).save();
