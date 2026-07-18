@@ -122,7 +122,7 @@ type ArticlePayload = {
   excerpt: string;
   content: string;
   coverImage: string | null;
-  categoryId: number | null;
+  categoryId: string | null;
   status: "draft" | "published";
   featured: boolean;
   tags: string[];
@@ -242,16 +242,33 @@ function buildArticlePayload(title: string, blocks: Block[], status: "draft" | "
   };
 }
 
+function parseColumnHtml(html: string): ColumnBlockData {
+  if (!html) return { type: "paragraph", content: "" };
+  
+  const imgRegex = /<img\s+src="([^"]*)"(?:\s+alt="([^"]*)")?\s*\/?>/i;
+  const imgMatch = html.match(imgRegex);
+  if (imgMatch) {
+    const url = imgMatch[1] || "";
+    const caption = (imgMatch[2] || "").replace(/&quot;/g, '"');
+    return { type: "image", url, caption };
+  }
+
+  const pRegex = /<p>([\s\S]*?)<\/p>/i;
+  const pMatch = html.match(pRegex);
+  let content = pMatch ? pMatch[1] : html;
+  content = content.replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  return { type: "paragraph", content };
+}
+
 export default function Editor({ articleId }: { articleId?: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const createArticle = useCreateArticle();
   const updateArticle = useUpdateArticle();
-  const articleIdNumber = articleId ? Number(articleId) : 0;
-  const { data: existingArticle, isLoading: articleLoading } = useAdminGetArticle(articleIdNumber, {
+  const { data: existingArticle, isLoading: articleLoading } = useAdminGetArticle(articleId as any, {
     query: {
-      enabled: !!articleId && Number.isFinite(articleIdNumber) && articleIdNumber > 0,
-      queryKey: getAdminGetArticleQueryKey(articleIdNumber),
+      enabled: !!articleId,
+      queryKey: getAdminGetArticleQueryKey(articleId as any),
     },
   });
 
@@ -275,7 +292,8 @@ export default function Editor({ articleId }: { articleId?: string }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const saved = window.localStorage.getItem(STORAGE_KEY);
+    const storageKey = articleId ? `sparkle-news:block-editor:draft:${articleId}` : "sparkle-news:block-editor:draft:new";
+    const saved = window.localStorage.getItem(storageKey);
     if (!saved) return;
 
     window.setTimeout(() => {
@@ -308,31 +326,29 @@ export default function Editor({ articleId }: { articleId?: string }) {
         // ignore invalid draft
       }
     }, 0);
-  }, []);
+  }, [articleId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const storageKey = articleId ? `sparkle-news:block-editor:draft:${articleId}` : "sparkle-news:block-editor:draft:new";
     const id = window.setTimeout(() => {
       try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ title, blocks, categoryIds, featured }));
+        window.localStorage.setItem(storageKey, JSON.stringify({ title, blocks, categoryIds, featured }));
       } catch {
         // ignore save failures
       }
     }, 400);
     return () => window.clearTimeout(id);
-  }, [title, blocks, categoryIds, featured]);
+  }, [title, blocks, categoryIds, featured, articleId]);
 
   // Load existing article if articleId is provided
   useEffect(() => {
     if (!existingArticle || articleLoading) return;
 
     window.setTimeout(() => {
-      const article = existingArticle as {
-        title?: string;
-        content?: string | { blocks?: Array<{ type?: string; [key: string]: unknown }> };
-        categoryId?: string;
-        featured?: boolean;
-      };
+      const article = (existingArticle as any)?.article || existingArticle;
+      if (!article) return;
+
       setTitle(article.title || "Untitled");
 
       let parsedContent: { blocks?: Array<{ type?: string; [key: string]: unknown }> } = {};
@@ -356,15 +372,32 @@ export default function Editor({ articleId }: { articleId?: string }) {
       }
 
       if (parsedContent.blocks && Array.isArray(parsedContent.blocks)) {
-        const editorBlocks = parsedContent.blocks.map((block) => ({
-          id: nanoid(),
-          type: (block.type as BlockType) || "paragraph",
-          data: block as BlockData,
-        }));
+        const editorBlocks = parsedContent.blocks.map((block) => {
+          let blockType: BlockType = (block.type as BlockType) || "paragraph";
+          const data: BlockData = { ...block };
+
+          if (block.type === "heading") {
+            blockType = `heading${block.level || 1}` as BlockType;
+          } else if (block.type === "list") {
+            data.content = Array.isArray(block.items) ? block.items.join("\n") : "";
+          } else if (block.type === "columns" && Array.isArray(block.columns)) {
+            data.left = parseColumnHtml(block.columns[0] || "");
+            data.right = parseColumnHtml(block.columns[1] || "");
+          }
+
+          return {
+            id: nanoid(),
+            type: blockType,
+            data,
+          };
+        });
         setBlocks(editorBlocks);
       }
 
-      if (article.categoryId) {
+      // Load all category IDs (support both multi-category and legacy single categoryId)
+      if (Array.isArray(article.categoryIds) && article.categoryIds.length > 0) {
+        setCategoryIds(article.categoryIds.map(String));
+      } else if (article.categoryId) {
         setCategoryIds([String(article.categoryId)]);
       }
 
@@ -550,23 +583,25 @@ export default function Editor({ articleId }: { articleId?: string }) {
     try {
       setIsPublishing(true);
       const payload = buildArticlePayload(title, blocks, "published", featured);
-      payload.categoryId = categoryIds[0] ? Number(categoryIds[0]) : null;
+      // Use first category as primary categoryId, and send all as categoryIds array
+      payload.categoryId = categoryIds[0] ? (categoryIds[0] as any) : null;
       
-      if (articleIdNumber) {
+      if (articleId) {
         const updateData: UpdateArticleBody = {
           title: payload.title,
           slug: payload.slug,
           excerpt: payload.excerpt || null,
           content: payload.content,
           coverImage: payload.coverImage,
-          categoryId: payload.categoryId != null ? Number(payload.categoryId) : null,
+          categoryId: payload.categoryId != null ? (payload.categoryId as any) : null,
+          ...(categoryIds.length > 0 ? { categoryIds: categoryIds as any } : {}),
           status: payload.status,
           featured: payload.featured,
           tags: payload.tags,
           seoTitle: payload.seoTitle ?? null,
           seoDescription: payload.seoDescription ?? null,
         };
-        await updateArticle.mutateAsync({ id: articleIdNumber, data: updateData });
+        await updateArticle.mutateAsync({ id: articleId as any, data: updateData });
       } else {
         const createData: CreateArticleBody = {
           title: payload.title,
@@ -574,7 +609,8 @@ export default function Editor({ articleId }: { articleId?: string }) {
           excerpt: payload.excerpt || null,
           content: payload.content,
           coverImage: payload.coverImage,
-          categoryId: payload.categoryId != null ? Number(payload.categoryId) : null,
+          categoryId: payload.categoryId != null ? (payload.categoryId as any) : null,
+          ...(categoryIds.length > 0 ? { categoryIds: categoryIds as any } : {}),
           status: payload.status,
           featured: payload.featured,
           tags: payload.tags,
@@ -584,7 +620,8 @@ export default function Editor({ articleId }: { articleId?: string }) {
         await createArticle.mutateAsync({ data: createData });
       }
       
-      window.localStorage.removeItem(STORAGE_KEY);
+      const storageKey = articleId ? `sparkle-news:block-editor:draft:${articleId}` : "sparkle-news:block-editor:draft:new";
+      window.localStorage.removeItem(storageKey);
       queryClient.invalidateQueries({ queryKey: getAdminListArticlesQueryKey() });
       toast.success(articleId ? "Article updated" : "Article published");
       router.push("/admin/articles");
@@ -600,23 +637,25 @@ export default function Editor({ articleId }: { articleId?: string }) {
     try {
       setIsSavingDraft(true);
       const payload = buildArticlePayload(title, blocks, "draft", featured);
-      payload.categoryId = categoryIds[0] ? Number(categoryIds[0]) : null;
+      // Use first category as primary categoryId, and send all as categoryIds array
+      payload.categoryId = categoryIds[0] ? (categoryIds[0] as any) : null;
       
-      if (articleIdNumber) {
+      if (articleId) {
         const updateData: UpdateArticleBody = {
           title: payload.title,
           slug: payload.slug,
           excerpt: payload.excerpt || null,
           content: payload.content,
           coverImage: payload.coverImage,
-          categoryId: payload.categoryId != null ? Number(payload.categoryId) : null,
+          categoryId: payload.categoryId != null ? (payload.categoryId as any) : null,
+          ...(categoryIds.length > 0 ? { categoryIds: categoryIds as any } : {}),
           status: payload.status,
           featured: payload.featured,
           tags: payload.tags,
           seoTitle: payload.seoTitle ?? null,
           seoDescription: payload.seoDescription ?? null,
         };
-        await updateArticle.mutateAsync({ id: articleIdNumber, data: updateData });
+        await updateArticle.mutateAsync({ id: articleId as any, data: updateData });
       } else {
         const createData: CreateArticleBody = {
           title: payload.title,
@@ -624,7 +663,8 @@ export default function Editor({ articleId }: { articleId?: string }) {
           excerpt: payload.excerpt || null,
           content: payload.content,
           coverImage: payload.coverImage,
-          categoryId: payload.categoryId != null ? Number(payload.categoryId) : null,
+          categoryId: payload.categoryId != null ? (payload.categoryId as any) : null,
+          ...(categoryIds.length > 0 ? { categoryIds: categoryIds as any } : {}),
           status: payload.status,
           featured: payload.featured,
           tags: payload.tags,
@@ -634,7 +674,8 @@ export default function Editor({ articleId }: { articleId?: string }) {
         await createArticle.mutateAsync({ data: createData });
       }
       
-      window.localStorage.removeItem(STORAGE_KEY);
+      const storageKey = articleId ? `sparkle-news:block-editor:draft:${articleId}` : "sparkle-news:block-editor:draft:new";
+      window.localStorage.removeItem(storageKey);
       queryClient.invalidateQueries({ queryKey: getAdminListArticlesQueryKey() });
       toast.success("Draft saved");
       router.push("/admin/articles");

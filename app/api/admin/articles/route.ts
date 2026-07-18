@@ -118,12 +118,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const created = await articlesTable.create({
+    // Explicitly handle categoryIds: ensure primary categoryId stays in sync
+    const articleData: any = {
       ...data,
       authorId: data.authorId || user.userId,
       createdAt: new Date(),
       updatedAt: new Date(),
-    });
+    };
+    if (Array.isArray(data.categoryIds) && data.categoryIds.length > 0) {
+      articleData.categoryIds = data.categoryIds;
+      articleData.categoryId = data.categoryIds[0];
+    } else if (data.categoryId) {
+      articleData.categoryId = data.categoryId;
+      articleData.categoryIds = [data.categoryId];
+    }
+
+    const created = await new (articlesTable as any)(articleData, { strict: false }).save();
     return NextResponse.json({
       ok: true,
       route: "/api/admin/articles",

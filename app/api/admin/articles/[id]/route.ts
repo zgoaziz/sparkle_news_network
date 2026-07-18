@@ -32,6 +32,7 @@ export async function GET(
         content: article.content,
         coverImage: article.coverImage,
         categoryId: article.categoryId?.toString(),
+        categoryIds: article.categoryIds?.map((id: any) => id.toString()) || (article.categoryId ? [article.categoryId.toString()] : []),
         authorId: article.authorId?.toString(),
         status: article.status,
         featured: article.featured,
@@ -72,11 +73,26 @@ export async function PUT(
     }
 
     const data = await req.json();
+
+    // Explicitly handle categoryIds: ensure primary categoryId stays in sync
+    const updatePayload: any = { ...data, updatedAt: new Date() };
+    if (Array.isArray(data.categoryIds) && data.categoryIds.length > 0) {
+      updatePayload.categoryIds = data.categoryIds;
+      // Keep primary categoryId as the first selected category
+      updatePayload.categoryId = data.categoryIds[0];
+    } else if (data.categoryId) {
+      updatePayload.categoryId = data.categoryId;
+      updatePayload.categoryIds = [data.categoryId];
+    } else {
+      updatePayload.categoryId = null;
+      updatePayload.categoryIds = [];
+    }
+
     const updated = (await articlesTable
       .findByIdAndUpdate(
         p.id,
-        { ...data, updatedAt: new Date() },
-        { new: true },
+        { $set: updatePayload },
+        { new: true, strict: false },
       )
       .lean()
       .exec()) as any;
@@ -140,3 +156,6 @@ export async function DELETE(
     );
   }
 }
+
+export { PUT as PATCH };
+

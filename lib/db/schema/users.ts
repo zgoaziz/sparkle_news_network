@@ -10,8 +10,11 @@ export interface IUser {
   status: "active" | "disabled";
   emailVerified: boolean;
   confirmationToken?: string;
+  otpCode?: string;
+  otpExpiresAt?: Date;
   avatar?: string;
   googleId?: string;
+  preferredCategories?: string[];
   resetToken?: string;
   resetTokenExpiresAt?: Date;
   createdAt: Date;
@@ -37,8 +40,11 @@ const userSchema = new Schema<IUser>(
     },
     emailVerified: { type: Boolean, default: false, required: true },
     confirmationToken: { type: String },
+    otpCode: { type: String },
+    otpExpiresAt: { type: Date },
     avatar: { type: String },
     googleId: { type: String },
+    preferredCategories: { type: [String], default: [] },
     resetToken: { type: String },
     resetTokenExpiresAt: { type: Date },
     createdAt: { type: Date, default: Date.now, required: true },
@@ -59,7 +65,10 @@ export const insertUserSchema = z.object({
   status: z.enum(["active", "disabled"]).optional(),
   emailVerified: z.boolean().optional(),
   confirmationToken: z.string().optional(),
+  otpCode: z.string().optional(),
+  otpExpiresAt: z.date().optional(),
   avatar: z.string().optional(),
+  preferredCategories: z.array(z.string()).optional(),
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

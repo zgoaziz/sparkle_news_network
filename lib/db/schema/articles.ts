@@ -9,6 +9,7 @@ export interface IArticle {
   content: string;
   coverImage?: string;
   categoryId?: Types.ObjectId;
+  categoryIds?: Types.ObjectId[];
   authorId: Types.ObjectId;
   status: "draft" | "published" | "archived";
   featured: boolean;
@@ -31,6 +32,7 @@ const articleSchema = new Schema<IArticle>(
     content: { type: String, required: true },
     coverImage: { type: String },
     categoryId: { type: Schema.Types.ObjectId, ref: "Category" },
+    categoryIds: [{ type: Schema.Types.ObjectId, ref: "Category" }],
     authorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     status: {
       type: String,
@@ -57,9 +59,11 @@ articleSchema.index({ categoryId: 1, status: 1, publishedAt: -1 });
 articleSchema.index({ tags: 1, status: 1, publishedAt: -1 });
 articleSchema.index({ slug: 1, status: 1 });
 
-export const Article = mongoose.models["Article"]
-  ? mongoose.model("Article")
-  : mongoose.model<any>("Article", articleSchema);
+// Delete stale cached model so schema changes (like categoryIds) always take effect
+if (mongoose.models["Article"]) {
+  delete (mongoose.models as any)["Article"];
+}
+export const Article = mongoose.model<any>("Article", articleSchema);
 
 export const insertArticleSchema = z.object({
   title: z.string(),
@@ -68,6 +72,7 @@ export const insertArticleSchema = z.object({
   content: z.string(),
   coverImage: z.string().optional(),
   categoryId: z.string().optional(),
+  categoryIds: z.array(z.string()).optional(),
   authorId: z.string(),
   status: z.enum(["draft", "published", "archived"]).optional(),
   featured: z.boolean().optional(),

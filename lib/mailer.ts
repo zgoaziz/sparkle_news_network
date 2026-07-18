@@ -1,13 +1,19 @@
 import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
+  service:
+    process.env.SMTP_SERVICE ||
+    (process.env.SMTP_HOST?.includes("gmail") ? "gmail" : undefined),
   host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT || "587"),
   secure: process.env.SMTP_SECURE === "true",
+  requireTLS: true,
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    pass: process.env.SMTP_PASS?.replace(/\s+/g, ""),
   },
+  logger: process.env.NODE_ENV !== "production",
+  debug: process.env.NODE_ENV !== "production",
 });
 
 function resolveFrontendUrl() {
@@ -60,7 +66,7 @@ export async function sendConfirmationEmail(email: string, token: string) {
 
   try {
     await transporter.sendMail({
-      from: process.env.SMTP_FROM,
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to: email,
       subject: "Confirmez votre compte Sparkle News",
       html: `
@@ -82,7 +88,7 @@ export async function sendPasswordResetEmail(email: string, token: string) {
 
   try {
     await transporter.sendMail({
-      from: process.env.SMTP_FROM,
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to: email,
       subject: "Réinitialisation de votre mot de passe",
       html: `
@@ -96,6 +102,26 @@ export async function sendPasswordResetEmail(email: string, token: string) {
     console.log("Email de réinitialisation envoyé à:", email);
   } catch (error) {
     console.error("Erreur d'envoi d'email de réinitialisation:", error);
+    throw error;
+  }
+}
+
+export async function sendOtpEmail(email: string, otpCode: string) {
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: email,
+      subject: "Votre code de vérification Sparkle News",
+      html: `
+        <h1>Code de vérification</h1>
+        <p>Voici votre code de vérification pour finaliser votre inscription :</p>
+        <h2>${otpCode}</h2>
+        <p>Ce code expire dans 10 minutes.</p>
+      `,
+    });
+    console.log("Code OTP envoyé à:", email);
+  } catch (error) {
+    console.error("Erreur d'envoi du code OTP:", error);
     throw error;
   }
 }
