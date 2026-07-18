@@ -137,7 +137,7 @@ export function ArticleCard({
 
   if (href) {
     return (
-      <Link href={href} className="block">
+      <Link href={href} className="block" prefetch={false}>
         {card}
       </Link>
     );

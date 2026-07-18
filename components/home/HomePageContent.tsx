@@ -23,7 +23,7 @@ function SectionTitle({ label, color = "#006FE6", href }: { label: string; color
         <h2 className="font-black text-base uppercase tracking-wide">{label}</h2>
       </div>
       {href && (
-        <Link href={href} className="text-xs font-semibold text-muted-foreground hover:text-[#006FE6] flex items-center gap-0.5 transition-colors">
+        <Link href={href} prefetch={false} className="text-xs font-semibold text-muted-foreground hover:text-[#006FE6] flex items-center gap-0.5 transition-colors">
           Tout voir <ChevronRight className="h-3.5 w-3.5" />
         </Link>
       )}
@@ -34,7 +34,7 @@ function SectionTitle({ label, color = "#006FE6", href }: { label: string; color
 function HeroCard({ article }: { article: ArticleSummary }) {
   const color = article.category?.color || "#006FE6";
   return (
-    <Link href={`/article/${article.slug}`}>
+    <Link href={`/article/${article.slug}`} prefetch={false}>
       <article className="group relative rounded-xl overflow-hidden cursor-pointer h-80 lg:h-[440px] news-card shadow">
         <div className="absolute inset-0">
           {article.coverImage ? (
@@ -71,7 +71,7 @@ function HeroCard({ article }: { article: ArticleSummary }) {
 function ListItem({ article }: { article: ArticleSummary }) {
   const color = article.category?.color || "#006FE6";
   return (
-    <Link href={`/article/${article.slug}`}>
+    <Link href={`/article/${article.slug}`} prefetch={false}>
       <div className="group flex gap-3 py-2.5 border-b border-border last:border-0 cursor-pointer hover:bg-muted/30 px-1 -mx-1 rounded-lg transition-colors">
         {article.coverImage && (
           <div className="shrink-0 w-20 h-14 rounded-lg overflow-hidden bg-muted">
@@ -94,7 +94,7 @@ function CategorySection({ articles, accentColor }: { articles: ArticleSummary[]
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div className="md:col-span-2">
-        <Link href={`/article/${main.slug}`}>
+        <Link href={`/article/${main.slug}`} prefetch={false}>
           <article className="group relative rounded-xl overflow-hidden h-60 news-card cursor-pointer shadow">
             <div className="absolute inset-0">
               {main.coverImage ? (
@@ -134,7 +134,7 @@ function MostRead({ articles }: { articles: ArticleSummary[] }) {
       </div>
       <div className="p-4 space-y-0">
         {articles.map((article, i) => (
-          <Link key={article.id} href={`/article/${article.slug}`}>
+          <Link key={article.id} href={`/article/${article.slug}`} prefetch={false}>
             <div className="group flex gap-3 py-3 border-b border-border last:border-0 cursor-pointer hover:bg-muted/30 px-1 -mx-1 rounded-lg transition-colors">
               <span className="text-4xl font-black text-muted-foreground/15 w-10 shrink-0 leading-none">{String(i + 1).padStart(2, "0")}</span>
               <div className="flex-1 min-w-0">
@@ -199,7 +199,7 @@ export function HomePageContent({
         {latestArticles.length >= 12 && (
           <div className="mt-6 text-center">
             <Button asChild variant="outline" className="border-[#006FE6] text-[#006FE6] hover:bg-[#006FE6] hover:text-white">
-              <Link href="/actualites">
+              <Link href="/actualites" prefetch={false}>
                 Voir toutes les actualites <ChevronRight className="h-4 w-4 ml-1" />
               </Link>
             </Button>
@@ -215,7 +215,7 @@ export function HomePageContent({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {popularArticles.slice(0, 8).map((article) => (
-              <Link key={article.id} href={`/article/${article.slug}`}>
+              <Link key={article.id} href={`/article/${article.slug}`} prefetch={false}>
                 <article className="group relative rounded-xl overflow-hidden h-48 news-card cursor-pointer shadow hover:shadow-lg transition-shadow">
                   <div className="absolute inset-0">
                     {article.coverImage ? (
@@ -272,7 +272,7 @@ export function HomePageContent({
                 <div className="flex items-center gap-2 mb-4 pb-2 border-b-2 border-border">
                   <span className="h-4 w-4 rounded-full" style={{ backgroundColor: section.category.color || "#006FE6" }} />
                   <h2 className="font-black text-base uppercase tracking-wide">{section.category.name}</h2>
-                  <Link href={`/categories/${section.category.slug}`} className="ml-auto text-xs font-semibold text-muted-foreground hover:text-[#006FE6] flex items-center gap-0.5">
+                  <Link href={`/categories/${section.category.slug}`} prefetch={false} className="ml-auto text-xs font-semibold text-muted-foreground hover:text-[#006FE6] flex items-center gap-0.5">
                     Tout voir <ChevronRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import Link from "next/link";
 import { useListArticles } from "@/lib/api-client";
 
@@ -25,6 +25,7 @@ export function BreakingNews() {
             <Link
               key={i}
               href={`/article/${article.slug}`}
+              prefetch={false}
               className="text-xs font-semibold text-foreground/80 hover:text-[#006FE6] transition-colors shrink-0 flex items-center gap-2"
             >
               <span className="text-[#FF0033] font-black">&#9654;</span>

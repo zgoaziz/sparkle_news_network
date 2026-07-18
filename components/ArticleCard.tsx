@@ -42,7 +42,7 @@ export function ArticleCard({ article, variant = "default", className = "" }: Ar
 
   if (variant === "horizontal") {
     return (
-      <Link href={`/article/${article.slug}`}>
+      <Link href={`/article/${article.slug}`} prefetch={false}>
         <article className={`group flex gap-4 p-3 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer ${className}`}>
           {article.coverImage && (
             <div className="relative shrink-0 w-28 h-20 rounded-lg overflow-hidden bg-muted">
@@ -68,7 +68,7 @@ export function ArticleCard({ article, variant = "default", className = "" }: Ar
 
   if (variant === "compact") {
     return (
-      <Link href={`/article/${article.slug}`}>
+      <Link href={`/article/${article.slug}`} prefetch={false}>
         <article className={`group flex items-start gap-3 py-3 border-b border-border last:border-0 cursor-pointer ${className}`}>
           <div className="w-1 h-12 rounded-full shrink-0 mt-0.5" style={{ backgroundColor: categoryColor }} />
           <div className="flex-1 min-w-0">
@@ -85,7 +85,7 @@ export function ArticleCard({ article, variant = "default", className = "" }: Ar
 
   if (variant === "featured") {
     return (
-      <Link href={`/article/${article.slug}`}>
+      <Link href={`/article/${article.slug}`} prefetch={false}>
         <article className={`group relative rounded-2xl overflow-hidden cursor-pointer h-96 ${className}`}>
           <div className="absolute inset-0">
             {article.coverImage ? (
@@ -124,7 +124,7 @@ export function ArticleCard({ article, variant = "default", className = "" }: Ar
 
   // Default card - Premium News Website Style
   return (
-    <Link href={`/article/${article.slug}`}>
+    <Link href={`/article/${article.slug}`} prefetch={false}>
       <article className={`group flex flex-col bg-white rounded-[20px] overflow-hidden transition-all duration-300 cursor-pointer hover:shadow-2xl hover:-translate-y-1 ${className}`}
         style={{
           boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
@@ -186,7 +186,13 @@ export function ArticleCard({ article, variant = "default", className = "" }: Ar
               <MessageCircle className="h-4 w-4" />
               <span className="text-sm font-medium">{article.commentCount || 0}</span>
             </div>
-            <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
               <Bookmark className="h-4 w-4" />
             </button>
           </div>

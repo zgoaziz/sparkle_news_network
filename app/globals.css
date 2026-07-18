@@ -292,6 +292,8 @@
     animation: ticker 40s linear infinite;
     white-space: nowrap;
     display: inline-flex;
+    will-change: transform;
+    transform: translate3d(0, 0, 0);
   }
   .animate-ticker:hover { animation-play-state: paused; }
 

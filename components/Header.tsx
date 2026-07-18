@@ -19,7 +19,6 @@ export function Header() {
   const pathname = usePathname();
   const { user, logout, isAuthenticated, isAdmin } = useAuth();
   const { data: categoriesData } = useListCategories();
-  const [searchQuery, setSearchQuery] = useState("");
   const [darkMode, setDarkMode] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -32,17 +31,16 @@ export function Header() {
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
-    const fn = () => setScrolled(window.scrollY > 4);
-    window.addEventListener("scroll", fn);
+    const fn = () => {
+      const isScrolled = window.scrollY > 4;
+      setScrolled((prev) => (prev !== isScrolled ? isScrolled : prev));
+    };
+    window.addEventListener("scroll", fn, { passive: true });
     return () => window.removeEventListener("scroll", fn);
   }, []);
 
   function toggleDark() {
     setDarkMode((d) => { document.documentElement.classList.toggle("dark", !d); return !d; });
-  }
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    if (searchQuery.trim()) { router.push(`/recherche?q=${encodeURIComponent(searchQuery.trim())}`); setSearchQuery(""); }
   }
   function handleLogout() { logout(); router.push("/"); }
 
@@ -133,7 +131,7 @@ export function Header() {
                       const labels = ["Accueil", "A la une", "À propos", "Contact"];
                       const isActive = pathname === href;
                       return (
-                        <Link key={href} href={href} onClick={() => setMobileOpen(false)}
+                        <Link key={href} href={href} onClick={() => setMobileOpen(false)} prefetch={false}
                           className={`px-4 py-3 text-sm font-bold rounded-xl transition-all flex items-center justify-between group ${isActive ? "bg-white text-[#003B8F] shadow-md" : "bg-white/8 text-white/90 hover:bg-white/12 hover:text-white"}`}>
                           {labels[i]}
                           <ChevronRight className={`h-4 w-4 transition-transform ${isActive ? "text-[#003B8F]" : "text-white/50 group-hover:text-white group-hover:translate-x-1"}`} />
@@ -147,7 +145,7 @@ export function Header() {
                       <div className="text-[10px] font-black uppercase tracking-[0.25em] text-white/60 mb-3 ml-2">Rubriques</div>
                       <div className="flex flex-col gap-1.5">
                         {categories.map((cat: any) => (
-                          <Link key={cat.id} href={`/categories/${cat.slug}`} onClick={() => setMobileOpen(false)}
+                          <Link key={cat.id} href={`/categories/${cat.slug}`} onClick={() => setMobileOpen(false)} prefetch={false}
                             className="px-4 py-2.5 text-sm rounded-xl transition-all flex items-center gap-3 group bg-white/5 hover:bg-white/10 font-semibold text-white/85 hover:text-white">
                             <span className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: cat.color || "#006FE6" }} />
                             <span className="flex-1">{cat.name}</span>
@@ -163,8 +161,12 @@ export function Header() {
                 {!isAuthenticated && (
                   <div className="p-4 bg-black/10 border-t border-white/10 shrink-0">
                     <div className="flex flex-col gap-2">
-                      <Button variant="outline" className="w-full h-11 rounded-xl bg-white text-[#003B8F] hover:bg-white/90 font-bold border-white" onClick={() => { router.push("/connexion"); setMobileOpen(false); }}>Connexion</Button>
-                      <Button className="w-full h-11 rounded-xl bg-[#006FE6] hover:bg-[#0059BC] text-white border-0 font-bold shadow-lg" onClick={() => { router.push("/inscription"); setMobileOpen(false); }}>S'inscrire</Button>
+                      <Button variant="outline" className="w-full h-11 rounded-xl bg-white text-[#003B8F] hover:bg-white/90 font-bold border-white" asChild>
+                        <Link href="/connexion" onClick={() => setMobileOpen(false)} prefetch={false}>Connexion</Link>
+                      </Button>
+                      <Button className="w-full h-11 rounded-xl bg-[#006FE6] hover:bg-[#0059BC] text-white border-0 font-bold shadow-lg" asChild>
+                        <Link href="/inscription" onClick={() => setMobileOpen(false)} prefetch={false}>S'inscrire</Link>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -172,17 +174,7 @@ export function Header() {
             </Sheet>
 
             {/* Desktop Search Bar */}
-            <form onSubmit={handleSearch} className="hidden md:flex relative group">
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Rechercher..."
-                className="w-48 lg:w-64 h-10 bg-black/10 border-white/20 text-white placeholder:text-white/60 rounded-full pl-4 pr-10 focus:border-white focus:bg-white/10 transition-all shadow-inner"
-              />
-              <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2">
-                <Search className="h-4 w-4 text-white/70 group-focus-within:text-white transition-colors" />
-              </button>
-            </form>
+            <HeaderSearch />
           </div>
 
           {/* CENTER: Logo */}
@@ -218,9 +210,23 @@ export function Header() {
                     <div className="font-bold text-sm">{user?.name}</div>
                     <div className="text-xs text-muted-foreground">{user?.email}</div>
                   </div>
-                  {isAdmin && <DropdownMenuItem onClick={() => router.push("/admin")} className="rounded-lg cursor-pointer font-medium"><Settings className="h-4 w-4 mr-2" /> Administration</DropdownMenuItem>}
-                  <DropdownMenuItem onClick={() => router.push("/dashboard")} className="rounded-lg cursor-pointer font-medium"><LayoutDashboard className="h-4 w-4 mr-2" /> Mon espace</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push("/dashboard/profil")} className="rounded-lg cursor-pointer font-medium"><User className="h-4 w-4 mr-2" /> Mon profil</DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild className="rounded-lg cursor-pointer font-medium">
+                      <Link href="/admin" prefetch={false}>
+                        <Settings className="h-4 w-4 mr-2" /> Administration
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem asChild className="rounded-lg cursor-pointer font-medium">
+                    <Link href="/dashboard" prefetch={false}>
+                      <LayoutDashboard className="h-4 w-4 mr-2" /> Mon espace
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="rounded-lg cursor-pointer font-medium">
+                    <Link href="/dashboard/profil" prefetch={false}>
+                      <User className="h-4 w-4 mr-2" /> Mon profil
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="rounded-lg cursor-pointer text-destructive focus:text-destructive font-medium"><LogOut className="h-4 w-4 mr-2" /> Deconnexion</DropdownMenuItem>
                 </DropdownMenuContent>
@@ -243,12 +249,12 @@ export function Header() {
       <nav className="bg-white dark:bg-[#071A33] border-b border-border/50">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-center sm:justify-start h-[44px]">
           <div className="flex items-stretch overflow-x-auto scrollbar-hide h-full gap-2 w-full">
-            <Link href="/actualites"
+            <Link href="/actualites" prefetch={false}
               className={`shrink-0 px-3 flex items-center text-[11px] sm:text-xs font-black uppercase tracking-wider transition-colors border-b-[3px] ${pathname === "/actualites" ? "border-[#003B8F] text-[#003B8F] dark:border-white dark:text-white" : "border-transparent text-foreground/70 hover:text-[#003B8F] dark:hover:text-white"}`}>
               A la une
             </Link>
             {categories.map((cat: any) => (
-              <Link key={cat.id} href={`/categories/${cat.slug}`}
+              <Link key={cat.id} href={`/categories/${cat.slug}`} prefetch={false}
                 className={`shrink-0 px-3 flex items-center text-[11px] sm:text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-colors border-b-[3px] ${pathname === `/categories/${cat.slug}` ? "border-[#003B8F] text-[#003B8F] dark:border-white dark:text-white" : "border-transparent text-foreground/65 hover:text-[#003B8F] dark:hover:text-white"}`}>
                 {cat.name}
               </Link>
@@ -257,5 +263,32 @@ export function Header() {
         </div>
       </nav>
     </header>
+  );
+}
+
+function HeaderSearch() {
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/recherche?q=${encodeURIComponent(searchQuery.trim())}`);
+      setSearchQuery("");
+    }
+  }
+
+  return (
+    <form onSubmit={handleSearch} className="hidden md:flex relative group">
+      <Input
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="Rechercher..."
+        className="w-48 lg:w-64 h-10 bg-black/10 border-white/20 text-white placeholder:text-white/60 rounded-full pl-4 pr-10 focus:border-white focus:bg-white/10 transition-all shadow-inner"
+      />
+      <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2">
+        <Search className="h-4 w-4 text-white/70 group-focus-within:text-white transition-colors" />
+      </button>
+    </form>
   );
 }
